@@ -15,7 +15,6 @@ import android.provider.Settings
 import android.view.*
 import android.view.animation.DecelerateInterpolator
 import android.view.animation.PathInterpolator
-import android.view.animation.OvershootInterpolator
 import android.widget.*
 import android.animation.ValueAnimator
 import java.util.concurrent.TimeUnit
@@ -693,6 +692,9 @@ class IslandService : Service() {
                 previousMorph?.cancel()
                 val morph = ValueAnimator.ofFloat(0f, 1f)
                 animator = morph
+                // Reuse one drawable during the frame-by-frame morph to avoid per-frame allocations.
+                val morphBackground = pillBackground(if (expanded) 22f else 26f)
+                view.background = morphBackground
                 morph.apply {
                     duration = if (expanded) morphDurationMillis() else (morphDurationMillis() * 0.86f).toLong().coerceAtLeast(160L)
                     // A restrained spring-like finish avoids the exaggerated overshoot of the old morph.
@@ -715,7 +717,7 @@ class IslandService : Service() {
                             (targetVerticalBottomPadding - startVerticalBottomPadding) * t).toInt()
                         view.setPadding(horizontal, top, horizontal, bottom)
                         val corner = if (expanded) 22f + 4f * t else 26f - 4f * t
-                        view.background = pillBackground(corner)
+                        morphBackground.cornerRadius = corner * resources.displayMetrics.density
                         view.scaleX = 0.985f + 0.015f * t
                         view.scaleY = 0.985f + 0.015f * t
                         runCatching { wm.updateViewLayout(view, params) }
