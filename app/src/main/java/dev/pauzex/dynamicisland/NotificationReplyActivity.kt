@@ -51,6 +51,7 @@ class NotificationReplyActivity : Activity() {
             setPadding(dp(24), dp(28), dp(24), dp(28))
             setBackgroundColor(Color.rgb(8, 9, 14))
         }
+        SystemBarInsets.apply(root)
         root.addView(TextView(this).apply {
             text = "Reply to notification"
             textSize = 22f
