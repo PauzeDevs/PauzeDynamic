@@ -1,9 +1,9 @@
 name: Android CI
 on:
   push:
-    branches: [main, PauzeDynamic]
+    branches: [main, PauzeDynamic, "feat/**"]
   pull_request:
-    branches: [main]
+    branches: [main, PauzeDynamic]
   workflow_dispatch:
 permissions:
   contents: read
