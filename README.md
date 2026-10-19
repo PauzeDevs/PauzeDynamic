@@ -11,7 +11,7 @@ Media • Notifications • Battery • Progress • Customisation</p>
   <a href="https://github.com/PauzeDevs/PauzeDynamic/actions/workflows/android.yml"><img src="https://github.com/PauzeDevs/PauzeDynamic/actions/workflows/android.yml/badge.svg" alt="Android CI" /></a>
   <a href="https://github.com/PauzeDevs/PauzeDynamic/stargazers"><img src="https://img.shields.io/github/stars/PauzeDevs/PauzeDynamic?style=flat&color=8B9CFF" alt="GitHub stars" /></a>
   <a href="https://github.com/PauzeDevs/PauzeDynamic/issues"><img src="https://img.shields.io/github/issues/PauzeDevs/PauzeDynamic?style=flat&color=70E1C1" alt="Open issues" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-70E1C1.svg?style=flat" alt="MIT License" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-70E1C1.svg?style=flat" alt="MIT License" /></a>
   <img src="https://img.shields.io/badge/platform-Android-3DDC84?style=flat&logo=android&logoColor=white" alt="Android" />
   <img src="https://img.shields.io/badge/language-Kotlin-7F52FF?style=flat&logo=kotlin&logoColor=white" alt="Kotlin" />
 </p>
@@ -127,7 +127,11 @@ Found a bug or have an idea?
 
 ## 📄 License
 
-Released under the [MIT License](LICENSE).
+Released under the **[Apache License, Version 2.0](LICENSE)** ([SPDX: Apache-2.0](https://spdx.org/licenses/Apache-2.0.html)).
+
+You may use, modify, and redistribute this project, including commercially, subject to the license terms. Redistributions must include a copy of the license and preserve applicable copyright, patent, trademark, and attribution notices; modified files must clearly indicate that they were changed. Apache-2.0 also includes an express patent license from contributors, subject to its terms. The software is provided **without warranties or conditions**, as described in the license.
+
+See [NOTICE](NOTICE) for project attribution. Third-party dependencies and assets, if any, remain subject to their respective licenses.
 
 <div align="center">
 
