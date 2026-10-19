@@ -217,10 +217,17 @@ class IslandService : Service() {
 
     private fun dp(n: Int) = (n * resources.displayMetrics.density).toInt()
 
-    private fun accent(): Int = try {
-        Color.parseColor(prefs.getString("accent", "#8B9CFF"))
-    } catch (_: Exception) {
-        Color.rgb(139, 156, 255)
+    private fun accent(): Int {
+        val selected = prefs.getString("accent", "#8B9CFF") ?: "#8B9CFF"
+        val premium = setOf("#B7A2FF", "#6EC9FF", "#FF6E91", "#FFC46B")
+        if (selected in premium && !prefs.getBoolean("pro_entitled", false)) {
+            return Color.rgb(139, 156, 255)
+        }
+        return try {
+            Color.parseColor(selected)
+        } catch (_: Exception) {
+            Color.rgb(139, 156, 255)
+        }
     }
 
     private fun pillBackground() = GradientDrawable(
