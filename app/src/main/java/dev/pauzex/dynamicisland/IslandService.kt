@@ -46,6 +46,7 @@ class IslandService : Service() {
     private var touchStartedExpanded = false
     private var liveDotView: View? = null
     private var pulseAnimator: ValueAnimator? = null
+    private val waveAnimators = mutableListOf<ValueAnimator>()
     private var headlineTextView: TextView? = null
     private var timerLabelView: TextView? = null
     private var seekBarView: SeekBar? = null
@@ -441,26 +442,80 @@ class IslandService : Service() {
         )
         view.background = pillBackground()
 
+        waveAnimators.forEach { it.cancel() }
+        waveAnimators.clear()
         if (!expanded) {
             val compact = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER
             }
-            val dot = TextView(this).apply {
-                text = "•"
-                textSize = 16f
-                setTextColor(if (IslandState.mediaPlaying) Color.rgb(116, 232, 194) else accent())
-                gravity = Gravity.CENTER
-                setPadding(0, 0, dp(7), 0)
+            val hasMedia = prefs.getBoolean("show_media", true) && controller != null && IslandState.title != "PauzeX"
+            if (hasMedia && IslandState.albumArt != null) {
+                val miniArt = ImageView(this).apply {
+                    setImageBitmap(IslandState.albumArt)
+                    scaleType = ImageView.ScaleType.CENTER_CROP
+                    background = roundBackground(Color.rgb(28, 30, 36), dp(7), Color.rgb(54, 56, 63))
+                    clipToOutline = true
+                    contentDescription = "Album artwork"
+                }
+                compact.addView(miniArt, LinearLayout.LayoutParams(dp(24), dp(24)).apply { rightMargin = dp(8) })
+            } else {
+                val dot = TextView(this).apply {
+                    text = when {
+                        hasMedia -> "♫"
+                        IslandState.timerEndMillis > System.currentTimeMillis() -> "◷"
+                        prefs.getBoolean("show_notifications", true) && IslandState.notificationPreview != null -> "●"
+                        else -> "•"
+                    }
+                    textSize = if (hasMedia) 16f else 14f
+                    setTextColor(if (IslandState.mediaPlaying) Color.rgb(116, 232, 194) else accent())
+                    gravity = Gravity.CENTER
+                    setPadding(0, 0, dp(7), 0)
+                }
+                liveDotView = dot
+                compact.addView(dot)
             }
-            liveDotView = dot
-            compact.addView(dot)
-            headlineTextView = label(headline(), 11.5f).apply {
+            headlineTextView = label(headline().removePrefix("♫ ").removePrefix("● "), 11.5f).apply {
                 maxLines = 1
-                letterSpacing = 0.01f
+                letterSpacing = 0.005f
                 setTextColor(Color.rgb(246, 246, 249))
             }
             compact.addView(headlineTextView, LinearLayout.LayoutParams(0, -2, 1f))
+            if (hasMedia) {
+                val waveform = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER
+                    setPadding(dp(7), 0, dp(1), 0)
+                    importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                }
+                val heights = listOf(6, 13, 9, 15)
+                heights.forEachIndexed { index, height ->
+                    val bar = View(this).apply {
+                        background = GradientDrawable().apply {
+                            cornerRadius = dp(2).toFloat()
+                            setColor(Color.rgb(116, 232, 194))
+                        }
+                        scaleY = if (IslandState.mediaPlaying) 0.65f else 0.3f
+                    }
+                    waveform.addView(bar, LinearLayout.LayoutParams(dp(3), dp(height)).apply {
+                        if (index > 0) leftMargin = dp(3)
+                    })
+                    if (IslandState.mediaPlaying) {
+                        ValueAnimator.ofFloat(0.25f, 1f).apply {
+                            duration = 480L + index * 130L
+                            startDelay = index * 95L
+                            repeatCount = ValueAnimator.INFINITE
+                            repeatMode = ValueAnimator.REVERSE
+                            addUpdateListener { animation ->
+                                if (bar.parent != null) bar.scaleY = animation.animatedValue as Float
+                            }
+                            waveAnimators.add(this)
+                            start()
+                        }
+                    }
+                }
+                compact.addView(waveform)
+            }
             view.addView(compact)
         } else {
             val header = LinearLayout(this).apply {
@@ -855,6 +910,8 @@ class IslandService : Service() {
         animator?.cancel()
         pulseAnimator?.cancel()
         pulseAnimator = null
+        waveAnimators.forEach { it.cancel() }
+        waveAnimators.clear()
         pill?.let { runCatching { wm.removeView(it) } }
         pill = null
         overlayParams = null
