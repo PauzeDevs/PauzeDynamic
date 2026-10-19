@@ -663,7 +663,9 @@ class IslandService : Service() {
                 view.scaleX = 0.985f
                 view.scaleY = 0.985f
                 animator?.cancel()
-                animator = ValueAnimator.ofFloat(0f, 1f).apply {
+                val morph = ValueAnimator.ofFloat(0f, 1f)
+                animator = morph
+                morph.apply {
                     duration = if (expanded) 430L else 330L
                     interpolator = OvershootInterpolator(if (expanded) 0.55f else 0.28f)
                     addUpdateListener { animation ->
@@ -687,7 +689,7 @@ class IslandService : Service() {
                     }
                     addListener(object : android.animation.AnimatorListenerAdapter() {
                         override fun onAnimationEnd(animation: android.animation.Animator) {
-                            if (animator !== this@apply) return
+                            if (animator !== morph) return
                             params.width = targetWidth
                             params.height = WindowManager.LayoutParams.WRAP_CONTENT
                             view.setPadding(targetHorizontalPadding, targetVerticalTopPadding,
