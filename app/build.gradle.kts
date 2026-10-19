@@ -18,3 +18,7 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
 }
+
+dependencies {
+    implementation("com.android.billingclient:billing:9.1.0")
+}
