@@ -240,6 +240,7 @@ class ProActivity : Activity() {
         addGap(content, 6)
         listOf(
             "Premium accent palettes and visual themes",
+            "Subtle animated live indicator while music is playing",
             "Separate Music, Alerts and Tools activity views",
             "Expanded media controls with artwork and seeking",
             "Notification actions, inline replies and app filters",
