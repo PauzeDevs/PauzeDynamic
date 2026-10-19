@@ -32,10 +32,10 @@ PauzeX Dynamic Island brings a compact, expandable live-activity pill to Android
 
 | Feature | Details |
 | --- | --- |
-| **Floating pill** | Dark, glass-inspired appearance with expandable content |
-| **Motion** | Expand/collapse feedback animation |
+| **Floating pill** | Pure-black default capsule designed to visually blend with a black bezel or camera cutout |
+| **Motion** | Tap to expand/collapse with display-vsync-paced morphing, tuned for smooth 60-fps-class motion where the device can sustain it |
 | **Move it** | Drag the overlay to reposition it |
-| **Appearance** | Choose an accent colour and adjust compact pill width |
+| **Appearance** | Adjust compact width, expanded panel width, accent colour, and morph duration (180–420 ms) |
 | **Media session switching** | Watches Android active media sessions and prefers a currently playing session |
 | **Music controls** | Track metadata, album art, play/pause, supported previous/next actions and seeking when the player exposes them |
 | **Interactive notifications** | Expanded notification title and body, open action, up to three notification actions, and text replies when a notification exposes a `RemoteInput` action |
@@ -149,7 +149,8 @@ Some manufacturers apply additional background-service restrictions. If the pill
 
 ## ⚠️ Known limitations
 
-- This is a prototype, **not a stable or device-certified release**. The overlay is an Android app-layer implementation inspired by Dynamic Island interaction patterns; it is not an iOS system component and cannot reproduce iOS-only system integrations.
+- This is a prototype, **not a stable or device-certified release**. The overlay is an Android app-layer implementation inspired by Apple's Dynamic Island; it cannot become Apple's actual system component or reproduce iOS-only system integrations.
+- The default/classic capsule uses pure black. Animation is paced by Android's display-vsync animation clock and is designed for smooth 60-fps-class transitions, but no app can guarantee a sustained frame rate on every device or under thermal/GPU load.
 - Media metadata, seeking, previous/next controls and notification actions depend on what each other app exposes through Android. Some players don't publish every control.
 - Notification app filters list packages only after their notifications have been observed. Apps can change their notification action layout without notice.
 - This uses Android notification `RemoteInput` only for notifications that expose an inline-reply action; it cannot create reply support for apps that do not provide one.
