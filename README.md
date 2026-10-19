@@ -45,6 +45,7 @@ PauzeX Dynamic Island brings a compact, expandable live-activity pill to Android
 | **Quick timers** | Start one-, five-, ten- or twenty-five-minute countdowns; cancel active timers |
 | **Position controls** | Drag to reposition, persist placement, and reset to top-center |
 | **Appearance** | Set accent colour, compact pill width and visible modules |
+| **PauzeX Pro** | Google Play Billing flow for weekly/yearly subscriptions and lifetime unlock; premium accent palette and optional live-indicator pulse |
 
 <div align="center">
 
@@ -79,6 +80,30 @@ The APK will be generated at:
 ```
 app/build/outputs/apk/debug/app-debug.apk
 ```
+
+## ✨ PauzeX Pro plans
+
+The app includes a Pro purchase screen with these requested price points:
+
+| Plan | Displayed price | Billing type |
+| --- | ---: | --- |
+| 1 week | ₹200/week | Auto-renewing weekly subscription |
+| 1 year | ₹250/year | Auto-renewing yearly subscription |
+| Lifetime | ₹400 once | One-time purchase |
+
+The final price and billing terms shown by Google Play are authoritative. Configure the same prices in Play Console before selling. Weekly and yearly plans renew automatically until canceled; Lifetime is a one-time purchase.
+
+### Google Play product setup
+
+The checkout flow queries these product IDs. They must be created and activated in Play Console for this app's application ID, with matching base plans:
+
+- `pauzex_pro_weekly` — subscription with base plan ID `weekly`, recurring every week, ₹200.
+- `pauzex_pro_yearly` — subscription with base plan ID `yearly`, recurring every year, ₹250.
+- `pauzex_pro_lifetime` — one-time product, ₹400.
+
+Upload a properly signed app to an internal test track and use Play-licensed tester accounts to validate purchase, restore and cancellation flows. Product IDs cannot be made active by source code alone. The current build's Pro entitlement is checked client-side from Google Play purchase results; before public paid distribution, add server-side purchase-token verification and lifecycle handling. A local debug APK by itself cannot provide a production-secure payment entitlement.
+
+The Pro-only palette has four additional accent colours. The optional live-indicator pulse runs while playback is active when Pro is enabled. A valid purchase is required to unlock these features; the UI does not simulate or grant a successful payment when Play products are missing.
 
 ## ⚙️ First-time setup
 

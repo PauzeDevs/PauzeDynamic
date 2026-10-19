@@ -41,6 +41,8 @@ class IslandService : Service() {
     private var startY = 0
     private var moved = false
     private var isSeeking = false
+    private var liveDotView: View? = null
+    private var pulseAnimator: ValueAnimator? = null
     private var headlineTextView: TextView? = null
     private var timerLabelView: TextView? = null
     private var seekBarView: SeekBar? = null
@@ -217,10 +219,17 @@ class IslandService : Service() {
 
     private fun dp(n: Int) = (n * resources.displayMetrics.density).toInt()
 
-    private fun accent(): Int = try {
-        Color.parseColor(prefs.getString("accent", "#8B9CFF"))
-    } catch (_: Exception) {
-        Color.rgb(139, 156, 255)
+    private fun accent(): Int {
+        val selected = prefs.getString("accent", "#8B9CFF") ?: "#8B9CFF"
+        val premium = setOf("#B7A2FF", "#6EC9FF", "#FF6E91", "#FFC46B")
+        if (selected in premium && !prefs.getBoolean("pro_entitled", false)) {
+            return Color.rgb(139, 156, 255)
+        }
+        return try {
+            Color.parseColor(selected)
+        } catch (_: Exception) {
+            Color.rgb(139, 156, 255)
+        }
     }
 
     private fun pillBackground() = GradientDrawable(
@@ -386,6 +395,7 @@ class IslandService : Service() {
         timerLabelView = null
         seekBarView = null
         seekTimeView = null
+        liveDotView = null
         view.orientation = LinearLayout.VERTICAL
         view.gravity = Gravity.CENTER_VERTICAL
         view.setPadding(
@@ -401,13 +411,15 @@ class IslandService : Service() {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER
             }
-            compact.addView(TextView(this).apply {
+            val dot = TextView(this).apply {
                 text = "•"
                 textSize = 16f
                 setTextColor(if (IslandState.mediaPlaying) Color.rgb(116, 232, 194) else accent())
                 gravity = Gravity.CENTER
                 setPadding(0, 0, dp(7), 0)
-            })
+            }
+            liveDotView = dot
+            compact.addView(dot)
             headlineTextView = label(headline(), 11.5f).apply {
                 maxLines = 1
                 letterSpacing = 0.01f
@@ -420,13 +432,15 @@ class IslandService : Service() {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
             }
-            header.addView(TextView(this).apply {
+            val dot = TextView(this).apply {
                 text = "•"
                 textSize = 13f
                 setTextColor(if (IslandState.mediaPlaying) Color.rgb(116, 232, 194) else accent())
                 gravity = Gravity.CENTER
                 setPadding(0, 0, dp(6), 0)
-            })
+            }
+            liveDotView = dot
+            header.addView(dot)
             header.addView(label("LIVE ACTIVITY", 9.5f, Color.rgb(174, 177, 187)).apply {
                 letterSpacing = 0.12f
             }, LinearLayout.LayoutParams(0, -2, 1f))
@@ -521,6 +535,27 @@ class IslandService : Service() {
             runCatching { wm.updateViewLayout(view, params) }
         }
         updateDynamicLabels()
+        updateProPulse()
+    }
+
+    private fun updateProPulse() {
+        val shouldPulse = prefs.getBoolean("pro_entitled", false) &&
+            prefs.getBoolean("pro_motion", true) && IslandState.mediaPlaying
+        if (shouldPulse) {
+            if (pulseAnimator == null) {
+                pulseAnimator = ValueAnimator.ofFloat(1f, 0.35f).apply {
+                    duration = 720L
+                    repeatCount = ValueAnimator.INFINITE
+                    repeatMode = ValueAnimator.REVERSE
+                    addUpdateListener { animator -> liveDotView?.alpha = animator.animatedValue as Float }
+                    start()
+                }
+            }
+        } else {
+            pulseAnimator?.cancel()
+            pulseAnimator = null
+            liveDotView?.alpha = 1f
+        }
     }
 
     private fun roundBackground(fill: Int, radius: Int, stroke: Int = Color.TRANSPARENT) = GradientDrawable().apply {
@@ -797,6 +832,8 @@ class IslandService : Service() {
         runCatching { controller?.unregisterCallback(mediaCallback) }
         handler.removeCallbacks(ticker)
         animator?.cancel()
+        pulseAnimator?.cancel()
+        pulseAnimator = null
         pill?.let { runCatching { wm.removeView(it) } }
         pill = null
         overlayParams = null
