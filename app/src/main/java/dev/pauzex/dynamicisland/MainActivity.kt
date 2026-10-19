@@ -129,6 +129,7 @@ class MainActivity : Activity() {
             setPadding(dp(22), dp(22), dp(22), dp(30))
             setBackgroundColor(bg)
         }
+        SystemBarInsets.apply(root)
         root.addView(text("PAUZEX  /  ANDROID", 11f, accent, true))
         root.addView(text("Dynamic Island", 32f, Color.WHITE, true))
         root.addView(text("A live-activity overlay with actionable notifications, media controls and customisation.", 14f, Color.LTGRAY))
