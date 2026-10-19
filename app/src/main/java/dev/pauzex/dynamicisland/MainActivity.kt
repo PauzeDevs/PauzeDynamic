@@ -219,7 +219,8 @@ class MainActivity : Activity() {
         root.addView(toggle("Notification progress bars", "show_progress"))
 
         root.addView(section("Accent colour"))
-        val colors = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        val colors = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        var colorRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         val paletteOptions = listOf(
             "#8B9CFF" to false,
             "#70E1C1" to false,
@@ -231,7 +232,11 @@ class MainActivity : Activity() {
             "#FF6E91" to true,
             "#FFC46B" to true
         )
-        paletteOptions.forEach { (hex, proOnly) ->
+        paletteOptions.forEachIndexed { index, (hex, proOnly) ->
+            if (index == 5) {
+                colors.addView(colorRow)
+                colorRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            }
             val color = Color.parseColor(hex)
             val locked = proOnly && !prefs.getBoolean("pro_entitled", false)
             val swatch = TextView(this).apply {
@@ -257,12 +262,13 @@ class MainActivity : Activity() {
                     }
                 }
             }
-            colors.addView(swatch, LinearLayout.LayoutParams(dp(34), dp(34)).apply {
+            colorRow.addView(swatch, LinearLayout.LayoutParams(dp(34), dp(34)).apply {
                 rightMargin = dp(7)
                 topMargin = dp(6)
                 bottomMargin = dp(6)
             })
         }
+        colors.addView(colorRow)
         root.addView(colors)
         root.addView(text("Premium palette colours are locked until PauzeX Pro is active.", 10.5f, Color.GRAY))
         root.addView(text("Notification filters become available after apps have posted notifications while notification access is enabled. Media controls depend on each player's exposed Android media-session actions.", 12f, Color.GRAY)
