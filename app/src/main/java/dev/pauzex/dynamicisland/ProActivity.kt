@@ -51,7 +51,7 @@ class ProActivity : Activity() {
     private var hasOwnedProProduct = false
     private val resolvedPurchaseTypes = mutableSetOf<String>()
 
-    private val background = Color.rgb(7, 8, 12)
+    private val pageBackground = Color.rgb(7, 8, 12)
     private val panel = Color.rgb(17, 19, 25)
     private val line = Color.rgb(43, 46, 55)
     private val accent = Color.rgb(180, 190, 255)
@@ -90,14 +90,14 @@ class ProActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.statusBarColor = background
-        window.navigationBarColor = background
+        window.statusBarColor = pageBackground
+        window.navigationBarColor = pageBackground
         window.decorView.systemUiVisibility = 0
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), dp(18), dp(20), dp(26))
-            setBackgroundColor(background)
+            setBackgroundColor(pageBackground)
         }
         val top = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -120,7 +120,7 @@ class ProActivity : Activity() {
             setPadding(0, dp(26), 0, dp(10))
         })
         root.addView(label("Refined live activities, deeper customisation, and tools that feel at home on your phone.", 14f, muted).apply {
-            setLineSpacing(dp(3), 1f)
+            setLineSpacing(dp(3).toFloat(), 1f)
         })
 
         val hero = LinearLayout(this).apply {
@@ -191,7 +191,7 @@ class ProActivity : Activity() {
             topMargin = dp(8)
         })
         root.addView(label("Purchases are processed by Google Play. Weekly and yearly plans renew according to the terms shown by Google Play. You can manage or cancel subscriptions in Google Play. Prices displayed by Play are authoritative. Product IDs and plan pricing must be configured in Play Console before purchases can be completed.", 10f, Color.rgb(116, 120, 132)).apply {
-            setLineSpacing(dp(3), 1f)
+            setLineSpacing(dp(3).toFloat(), 1f)
             setPadding(dp(2), dp(15), dp(2), 0)
         })
 
