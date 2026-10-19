@@ -568,6 +568,7 @@ class IslandService : Service() {
             row.addView(actionButton("${minutes}m") {
                 IslandState.timerEndMillis = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(minutes.toLong())
                 IslandState.timerFinishedUntilMillis = 0L
+                IslandState.changed()
                 updateDynamicLabels()
             }, LinearLayout.LayoutParams(0, dp(36), 1f).apply { if (index > 0) leftMargin = dp(4) })
         }
@@ -576,6 +577,7 @@ class IslandService : Service() {
             parent.addView(actionButton("Cancel timer") {
                 IslandState.timerEndMillis = 0L
                 IslandState.timerFinishedUntilMillis = 0L
+                IslandState.changed()
                 updateDynamicLabels()
             }, LinearLayout.LayoutParams(-1, dp(34)).apply { topMargin = dp(5) })
         }
