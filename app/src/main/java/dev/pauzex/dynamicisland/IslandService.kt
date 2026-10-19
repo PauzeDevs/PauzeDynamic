@@ -280,7 +280,8 @@ class IslandService : Service() {
             gravity = Gravity.CENTER
             setPadding(dp(14), dp(9), dp(14), dp(9))
             background = pillBackground()
-            elevation = dp(14).toFloat()
+            // Avoid a pronounced drop-shadow; Apple's island sits almost flush with the display.
+            elevation = dp(2).toFloat()
             clipToOutline = true
             setOnClickListener {
                 if (!moved) {
