@@ -95,6 +95,7 @@ class IslandService : Service() {
             val now = System.currentTimeMillis()
             if (IslandState.timerEndMillis > 0L && IslandState.timerEndMillis <= now) {
                 IslandState.timerEndMillis = 0L
+                prefs.edit().remove("timer_end_millis").apply()
                 IslandState.timerFinishedUntilMillis = now + 5_000L
             } else if (IslandState.timerFinishedUntilMillis in 1..now) {
                 IslandState.timerFinishedUntilMillis = 0L
@@ -108,6 +109,9 @@ class IslandService : Service() {
     override fun onCreate() {
         super.onCreate()
         wm = getSystemService(WINDOW_SERVICE) as WindowManager
+        IslandState.timerEndMillis = prefs.getLong("timer_end_millis", 0L)
+            .takeIf { it > System.currentTimeMillis() } ?: 0L
+        if (IslandState.timerEndMillis == 0L) prefs.edit().remove("timer_end_millis").apply()
         if (Build.VERSION.SDK_INT >= 26) {
             val channel = NotificationChannel(CHANNEL, "Dynamic Island service", NotificationManager.IMPORTANCE_LOW)
             getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
@@ -349,7 +353,16 @@ class IslandService : Service() {
         params.x = if (customPosition) prefs.getInt("position_x", 0) else 0
         params.y = if (customPosition) prefs.getInt("position_y", dp(8)) else dp(8)
         overlayParams = params
-        runCatching { wm.addView(view, params) }.onFailure { pill = null; overlayParams = null }
+        runCatching {
+            wm.addView(view, params)
+            prefs.edit().remove("overlay_error").apply()
+        }.onFailure { error ->
+            pill = null
+            overlayParams = null
+            prefs.edit().putString("overlay_error", error.javaClass.simpleName).apply()
+            android.util.Log.e("PauzeXIsland", "Unable to attach floating island overlay", error)
+            Toast.makeText(this, "PauzeX couldn't show the island. Check overlay permission and try again.", Toast.LENGTH_LONG).show()
+        }
         render()
     }
 
@@ -833,7 +846,9 @@ class IslandService : Service() {
         }
         listOf(1, 5, 10, 25).forEachIndexed { index, minutes ->
             row.addView(actionButton("${minutes}m", prominent = running && IslandState.timerEndMillis - System.currentTimeMillis() < TimeUnit.MINUTES.toMillis(minutes.toLong())) {
-                IslandState.timerEndMillis = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(minutes.toLong())
+                val deadline = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(minutes.toLong())
+                prefs.edit().putLong("timer_end_millis", deadline).apply()
+                IslandState.timerEndMillis = deadline
                 IslandState.timerFinishedUntilMillis = 0L
                 IslandState.changed()
                 render()
@@ -846,6 +861,7 @@ class IslandService : Service() {
         if (running || IslandState.timerFinishedUntilMillis > System.currentTimeMillis()) {
             parent.addView(actionButton("Cancel timer", prominent = false) {
                 IslandState.timerEndMillis = 0L
+                prefs.edit().remove("timer_end_millis").apply()
                 IslandState.timerFinishedUntilMillis = 0L
                 IslandState.changed()
                 render()
