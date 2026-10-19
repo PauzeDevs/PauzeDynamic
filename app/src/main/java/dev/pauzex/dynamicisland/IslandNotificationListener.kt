@@ -5,7 +5,15 @@ import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 
 class IslandNotificationListener : NotificationListenerService() {
+    override fun onListenerConnected() {
+        super.onListenerConnected()
+        // Seed the island from existing notifications after access is granted or the device reconnects.
+        activeNotifications?.sortedBy { it.postTime }?.forEach { onNotificationPosted(it) }
+    }
+
     override fun onNotificationPosted(sbn: StatusBarNotification) {
+        // Ignore our own persistent foreground-service notification; otherwise it masks real notifications.
+        if (sbn.packageName == packageName) return
         val notification = sbn.notification ?: return
         val prefs = getSharedPreferences(IslandService.PREFS, MODE_PRIVATE)
         val blocked = prefs.getStringSet("blocked_notification_apps", emptySet()) ?: emptySet()
