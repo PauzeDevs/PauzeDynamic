@@ -53,6 +53,7 @@ class CustomTimerActivity : Activity() {
             setPadding(dp(24), dp(24), dp(24), dp(24))
             setBackgroundColor(bg)
         }
+        SystemBarInsets.apply(root)
         root.addView(label("PAUZEX PRO  /  TOOLS", 10f, accent, true))
         root.addView(label("Custom countdown", 29f, Color.WHITE, true).apply {
             setPadding(0, dp(9), 0, dp(8))
