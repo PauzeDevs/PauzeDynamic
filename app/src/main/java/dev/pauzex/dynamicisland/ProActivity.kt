@@ -64,12 +64,12 @@ class ProActivity : Activity() {
         )
     }
 
-    private val bg = Color.rgb(7, 8, 11)
-    private val surface = Color.rgb(18, 19, 24)
-    private val stroke = Color.rgb(47, 49, 57)
-    private val textPrimary = Color.rgb(246, 246, 249)
-    private val textSecondary = Color.rgb(153, 156, 166)
-    private val proAccent = Color.rgb(160, 171, 255)
+    private val bg = Color.rgb(5, 6, 8)
+    private val surface = Color.rgb(16, 17, 20)
+    private val stroke = Color.rgb(42, 44, 49)
+    private val textPrimary = Color.rgb(245, 245, 247)
+    private val textSecondary = Color.rgb(157, 159, 166)
+    private val proAccent = Color.rgb(151, 166, 255)
 
     private lateinit var billingClient: BillingClient
     private lateinit var statusLabel: TextView
@@ -101,7 +101,9 @@ class ProActivity : Activity() {
             textSize = size
             setTextColor(color)
             if (bold) typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            letterSpacing = if (size >= 22f) -0.025f else if (size <= 11f) 0.015f else 0f
             setPadding(0, dp(3), 0, dp(3))
+            setLineSpacing(dp(1).toFloat(), 1f)
         }
 
     private fun addGap(parent: LinearLayout, heightDp: Int) {
@@ -112,6 +114,7 @@ class ProActivity : Activity() {
         text = value
         textSize = 10f
         typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+        letterSpacing = 0.06f
         setTextColor(foreground)
         gravity = Gravity.CENTER
         setPadding(dp(10), dp(6), dp(10), dp(6))
@@ -121,8 +124,12 @@ class ProActivity : Activity() {
     private fun createPlanCard(plan: ProPlan): LinearLayout {
         val card = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(15), dp(13), dp(15), dp(13))
-            background = rounded(surface, 18, stroke)
+            setPadding(dp(15), dp(14), dp(15), dp(14))
+            background = android.graphics.drawable.RippleDrawable(
+                android.content.res.ColorStateList.valueOf(Color.rgb(67, 69, 76)),
+                rounded(surface, 20, stroke),
+                null
+            )
             isClickable = true
             isFocusable = true
             setOnClickListener {
@@ -145,10 +152,12 @@ class ProActivity : Activity() {
         val names = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         names.addView(text(plan.title, 15f, textPrimary, true))
         names.addView(text(plan.detail, 10.5f, textSecondary))
-        top.addView(names, LinearLayout.LayoutParams(0, -2, 1f))
+        top.addView(names, LinearLayout.LayoutParams(0, -2, 1f).apply {
+            rightMargin = dp(8)
+        })
         val price = TextView(this).apply {
             text = plan.priceFallback + plan.term
-            textSize = 15f
+            textSize = 14f
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
             setTextColor(textPrimary)
             gravity = Gravity.END or Gravity.CENTER_VERTICAL
@@ -184,7 +193,7 @@ class ProActivity : Activity() {
         val scroll = ScrollView(this).apply { isFillViewport = true }
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(22), dp(18), dp(22), dp(18))
+            setPadding(dp(24), dp(20), dp(24), dp(22))
             setBackgroundColor(bg)
         }
 
@@ -200,8 +209,9 @@ class ProActivity : Activity() {
             setOnClickListener { finish() }
         }
         nav.addView(back, LinearLayout.LayoutParams(dp(44), dp(44)))
-        nav.addView(text("PAUZEX  /  MEMBERSHIP", 10.5f, textSecondary, true),
-            LinearLayout.LayoutParams(0, -2, 1f))
+        nav.addView(text("PAUZEX  /  MEMBERSHIP", 10f, textSecondary, true).apply {
+            letterSpacing = 0.075f
+        }, LinearLayout.LayoutParams(0, -2, 1f))
         nav.addView(pillLabel("PRO", Color.rgb(9, 10, 14), proAccent))
         content.addView(nav)
 
@@ -209,59 +219,80 @@ class ProActivity : Activity() {
         val hero = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(dp(18), dp(22), dp(18), dp(22))
+            setPadding(dp(20), dp(26), dp(20), dp(25))
             background = GradientDrawable(
                 GradientDrawable.Orientation.TL_BR,
-                intArrayOf(Color.rgb(24, 26, 36), Color.rgb(11, 12, 17))
+                intArrayOf(Color.rgb(18, 19, 23), Color.rgb(8, 9, 11))
             ).apply {
-                cornerRadius = dp(25).toFloat()
-                setStroke(dp(1), Color.rgb(56, 59, 76))
+                cornerRadius = dp(26).toFloat()
+                setStroke(dp(1), Color.rgb(43, 45, 51))
             }
         }
         val glyph = TextView(this).apply {
             text = "✦"
-            textSize = 31f
+            textSize = 28f
             setTextColor(proAccent)
             gravity = Gravity.CENTER
         }
         hero.addView(glyph)
-        hero.addView(text("More island. More control.", 23f, textPrimary, true).apply {
+        hero.addView(text("More island.\nMore control.", 27f, textPrimary, true).apply {
             gravity = Gravity.CENTER
             textAlignment = View.TEXT_ALIGNMENT_CENTER
-            setPadding(0, dp(7), 0, dp(4))
+            setLineSpacing(0f, 0.98f)
+            setPadding(0, dp(9), 0, dp(7))
         })
-        hero.addView(text("A richer live-activity experience, shaped around your phone.", 12f, textSecondary).apply {
+        hero.addView(text("A refined live-activity experience, built around your phone.", 13f, textSecondary).apply {
             gravity = Gravity.CENTER
             textAlignment = View.TEXT_ALIGNMENT_CENTER
+            setPadding(dp(6), 0, dp(6), 0)
         })
         content.addView(hero, LinearLayout.LayoutParams(-1, -2))
 
         addGap(content, 20)
-        content.addView(text("PAUZEX PRO INCLUDES", 10f, proAccent, true))
-        addGap(content, 6)
-        listOf(
-            "Premium accent palettes and exclusive island surface themes",
-            "Subtle animated live indicator while music is playing",
-            "Swipe between Music, Alerts and Tools; swipe down to collapse",
-            "Expanded media controls with artwork and seeking",
+        content.addView(text("WHAT'S INCLUDED", 10f, proAccent, true).apply {
+            letterSpacing = 0.09f
+        })
+        addGap(content, 8)
+        val features = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(15), dp(4), dp(15), dp(4))
+            background = rounded(surface, 20, stroke)
+        }
+        val perks = listOf(
+            "Premium accent palettes and island themes",
+            "Subtle playback pulse and live indicators",
+            "Music, Alerts and Tools with swipe navigation",
+            "Album artwork and supported media controls",
             "Notification actions, inline replies and app filters",
-            "Custom countdowns from 1 minute up to 12 hours",
-            "Adjustable low-battery warning threshold from 5% to 30%",
-            "Future Pro theme and layout drops"
-        ).forEach { perk ->
+            "Custom countdowns up to 12 hours",
+            "Adjustable low-battery warning threshold"
+        )
+        perks.forEachIndexed { index, perk ->
             val row = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
-                setPadding(dp(3), dp(7), 0, dp(7))
+                setPadding(0, dp(11), 0, dp(11))
             }
-            row.addView(text("✓", 15f, Color.rgb(132, 221, 191), true),
-                LinearLayout.LayoutParams(dp(28), -2))
-            row.addView(text(perk, 12f, textPrimary), LinearLayout.LayoutParams(0, -2, 1f))
-            content.addView(row)
+            row.addView(text("✓", 14f, Color.rgb(130, 219, 190), true),
+                LinearLayout.LayoutParams(dp(27), -2))
+            row.addView(text(perk, 12.5f, textPrimary), LinearLayout.LayoutParams(0, -2, 1f))
+            features.addView(row)
+            if (index < perks.lastIndex) {
+                features.addView(View(this).apply {
+                    setBackgroundColor(Color.rgb(36, 38, 43))
+                }, LinearLayout.LayoutParams(-1, dp(1)).apply {
+                    leftMargin = dp(27)
+                })
+            }
         }
+        content.addView(features)
 
-        addGap(content, 15)
-        content.addView(text("CHOOSE YOUR PLAN", 10f, proAccent, true))
+        addGap(content, 23)
+        content.addView(text("Choose your plan", 21f, textPrimary, true).apply {
+            letterSpacing = -0.02f
+        })
+        content.addView(text("One clear price. No surprises before checkout.", 12f, textSecondary))
+        addGap(content, 10)
         addGap(content, 8)
         PLANS.forEachIndexed { index, plan ->
             content.addView(createPlanCard(plan), LinearLayout.LayoutParams(-1, -2).apply {
@@ -270,10 +301,15 @@ class ProActivity : Activity() {
         }
 
         addGap(content, 12)
-        statusLabel = text("Connecting to Google Play…", 11f, textSecondary)
+        statusLabel = text("Connecting to Google Play…", 11f, textSecondary).apply {
+            setPadding(dp(12), dp(9), dp(12), dp(9))
+            background = rounded(Color.rgb(12, 13, 16), 12, Color.rgb(35, 37, 42))
+        }
         content.addView(statusLabel)
 
-        entitlementLabel = text("", 11f, Color.rgb(132, 221, 191), true)
+        entitlementLabel = text("", 11f, Color.rgb(132, 221, 191), true).apply {
+            setPadding(0, dp(7), 0, dp(3))
+        }
         content.addView(entitlementLabel)
 
         content.addView(text(
@@ -308,8 +344,13 @@ class ProActivity : Activity() {
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
             gravity = Gravity.CENTER
             setTextColor(Color.rgb(7, 8, 11))
-            setPadding(dp(14), dp(15), dp(14), dp(15))
-            background = rounded(Color.rgb(239, 240, 245), 18)
+            minHeight = dp(54)
+            setPadding(dp(16), dp(15), dp(16), dp(15))
+            background = android.graphics.drawable.RippleDrawable(
+                android.content.res.ColorStateList.valueOf(Color.rgb(190, 192, 199)),
+                rounded(Color.rgb(242, 243, 247), 18),
+                null
+            )
             setOnClickListener { startPurchase() }
         }
         root.addView(buyButton, LinearLayout.LayoutParams(-1, -2).apply {
