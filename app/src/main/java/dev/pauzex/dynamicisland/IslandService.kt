@@ -222,7 +222,7 @@ class IslandService : Service() {
         top.addView(label(headline, 12f))
         view.addView(top)
         if (expanded) {
-            val divider = View(this).apply { setBackgroundColor(Color.rgb(42, 44, 55) }
+            val divider = View(this).apply { setBackgroundColor(Color.rgb(42, 44, 55)) }
             view.addView(divider, LinearLayout.LayoutParams(-1, dp(1)).apply { topMargin = dp(9); bottomMargin = dp(9) })
             val title = if (IslandState.title.isNotBlank()) IslandState.title else "PauzeX Dynamic"
             view.addView(label(title, 14f))
