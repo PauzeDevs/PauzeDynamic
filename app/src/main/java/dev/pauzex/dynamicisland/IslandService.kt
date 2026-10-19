@@ -432,18 +432,22 @@ class IslandService : Service() {
     private fun headline(): String {
         val preview = IslandState.notificationPreview
         return when {
-            prefs.getBoolean("show_notifications", true) && preview != null ->
-                "● " + (preview.title.ifBlank { preview.appLabel }).take(34)
+            // Active playback is the primary Dynamic-Island activity. Notification previews
+            // remain accessible in the expanded Alerts view but should not replace the track.
+            prefs.getBoolean("show_media", true) && IslandState.mediaPlaying && IslandState.title != "PauzeX" ->
+                "♫ " + IslandState.title
             IslandState.timerEndMillis > System.currentTimeMillis() ->
                 "Timer · " + timerRemaining()
             IslandState.timerFinishedUntilMillis > System.currentTimeMillis() -> "Timer finished"
+            prefs.getBoolean("show_notifications", true) && preview != null ->
+                "● " + (preview.title.ifBlank { preview.appLabel }).take(34)
             prefs.getBoolean("show_low_battery", true) && !IslandState.charging &&
                 IslandState.batteryPercent in 0..prefs.getInt("low_battery_threshold", 15).coerceIn(5, 30) -> "⚠ Low battery · ${IslandState.batteryPercent}%"
             prefs.getBoolean("show_battery", true) && IslandState.charging ->
                 "⚡ Charging · " + if (IslandState.batteryPercent >= 0) "${IslandState.batteryPercent}%" else ""
             prefs.getBoolean("show_progress", true) && IslandState.downloadProgress >= 0 ->
                 "↓ Progress · ${IslandState.downloadProgress}%"
-            prefs.getBoolean("show_media", true) && (IslandState.mediaPlaying || IslandState.title != "PauzeX") ->
+            prefs.getBoolean("show_media", true) && IslandState.title != "PauzeX" ->
                 "♫ " + IslandState.title
             prefs.getBoolean("show_battery", true) && IslandState.batteryPercent >= 0 ->
                 "Battery · ${IslandState.batteryPercent}%"
