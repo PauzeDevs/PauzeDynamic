@@ -168,6 +168,12 @@ class MainActivity : Activity() {
             Toast.makeText(this, "Island position reset.", Toast.LENGTH_SHORT).show()
         }, marginParams())
 
+        root.addView(section("PauzeX Pro"))
+        root.addView(text("Unlock premium accent palettes and upcoming layout packs.", 13f, Color.LTGRAY))
+        root.addView(button(if (prefs.getBoolean("pro_entitled", false)) "Manage PauzeX Pro  ↗" else "Explore Pro plans  ↗") {
+            startActivity(Intent(this, ProActivity::class.java))
+        }, marginParams())
+
         root.addView(section("Appearance"))
         val widthLabel = text("Compact pill width · ${prefs.getInt("pill_width", 210)} dp", 13f, Color.LTGRAY)
         root.addView(widthLabel)
@@ -199,28 +205,51 @@ class MainActivity : Activity() {
 
         root.addView(section("Accent colour"))
         val colors = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        listOf("#8B9CFF", "#70E1C1", "#FF9F70", "#F38BCB", "#FFFFFF").forEach { hex ->
+        val paletteOptions = listOf(
+            "#8B9CFF" to false,
+            "#70E1C1" to false,
+            "#FF9F70" to false,
+            "#F38BCB" to false,
+            "#FFFFFF" to false,
+            "#B7A2FF" to true,
+            "#6EC9FF" to true,
+            "#FF6E91" to true,
+            "#FFC46B" to true
+        )
+        paletteOptions.forEach { (hex, proOnly) ->
             val color = Color.parseColor(hex)
-            val swatch = View(this).apply {
+            val locked = proOnly && !prefs.getBoolean("pro_entitled", false)
+            val swatch = TextView(this).apply {
+                text = if (locked) "⌑" else ""
+                textSize = 11f
+                gravity = android.view.Gravity.CENTER
+                setTextColor(Color.rgb(9, 10, 14))
+                alpha = if (locked) 0.72f else 1f
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
                     setColor(color)
-                    setStroke(dp(2), if (prefs.getString("accent", "#8B9CFF") == hex) Color.WHITE else Color.rgb(50, 52, 65))
+                    setStroke(dp(if (prefs.getString("accent", "#8B9CFF") == hex) 3 else 1),
+                        if (prefs.getString("accent", "#8B9CFF") == hex) Color.WHITE else Color.rgb(50, 52, 65))
                 }
-                contentDescription = "Set accent colour $hex"
+                contentDescription = if (locked) "Premium accent colour $hex, unlock with PauzeX Pro" else "Set accent colour $hex"
                 setOnClickListener {
-                    prefs.edit().putString("accent", hex).apply()
-                    refreshOverlay()
-                    recreate()
+                    if (proOnly && !prefs.getBoolean("pro_entitled", false)) {
+                        startActivity(Intent(this@MainActivity, ProActivity::class.java))
+                    } else {
+                        prefs.edit().putString("accent", hex).apply()
+                        refreshOverlay()
+                        recreate()
+                    }
                 }
             }
-            colors.addView(swatch, LinearLayout.LayoutParams(dp(38), dp(38)).apply {
-                rightMargin = dp(14)
+            colors.addView(swatch, LinearLayout.LayoutParams(dp(34), dp(34)).apply {
+                rightMargin = dp(7)
                 topMargin = dp(6)
                 bottomMargin = dp(6)
             })
         }
         root.addView(colors)
+        root.addView(text("Premium palette colours are locked until PauzeX Pro is active.", 10.5f, Color.GRAY))
         root.addView(text("Notification filters become available after apps have posted notifications while notification access is enabled. Media controls depend on each player's exposed Android media-session actions.", 12f, Color.GRAY)
             .apply { setPadding(0, dp(20), 0, 0) })
         setContentView(ScrollView(this).apply {
