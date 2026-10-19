@@ -291,6 +291,11 @@ class ProActivity : Activity() {
             setPadding(0, dp(10), 0, dp(10))
             setOnClickListener { if (connected) queryOwnedPurchases(showMessage = true) else statusLabel.text = "Google Play billing is not connected." }
         })
+        content.addView(text("Manage subscription in Google Play", 12f, proAccent, true).apply {
+            gravity = Gravity.CENTER
+            setPadding(0, dp(8), 0, dp(12))
+            setOnClickListener { openPlaySubscriptions() }
+        })
 
         scroll.addView(content, ViewGroup.LayoutParams(-1, -2))
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
@@ -365,11 +370,18 @@ class ProActivity : Activity() {
                     response.productDetailsList.forEach { productDetails[it.productId] = it }
                     updatePriceLabels()
                     refreshPlanSelection()
-                    val missing = PLANS.filter { it.id !in productDetails }
+                    val missing = PLANS.filter { plan ->
+                        val details = productDetails[plan.id]
+                        when (plan.productType) {
+                            BillingClient.ProductType.SUBS -> matchingSubscriptionOffer(plan, details) == null
+                            else -> details == null
+                        }
+                    }
                     statusLabel.text = if (missing.isEmpty()) {
-                        "Plans loaded from Google Play."
+                        "Plans and expected billing periods loaded from Google Play."
                     } else {
-                        "Some plans are not configured or available in this Play build yet."
+                        "Missing product or expected base plan: " + missing.joinToString { it.title } +
+                            ". Check the product IDs and base plan periods in Play Console."
                     }
                 } else {
                     statusLabel.text = "Couldn't load Play prices: ${result.debugMessage.ifBlank { "try again" }}"
@@ -399,7 +411,7 @@ class ProActivity : Activity() {
 
     private fun matchingSubscriptionOffer(plan: ProPlan, details: ProductDetails?): ProductDetails.SubscriptionOfferDetails? {
         val offers = details?.subscriptionOfferDetails.orEmpty()
-        return offers.firstOrNull { it.basePlanId == plan.basePlanId } ?: offers.firstOrNull()
+        return offers.firstOrNull { it.basePlanId == plan.basePlanId }
     }
 
     private fun refreshPlanSelection() {
