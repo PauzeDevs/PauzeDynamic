@@ -288,7 +288,7 @@ class ProActivity : Activity() {
         content.addView(features)
 
         addGap(content, 23)
-        content.addView(text("Choose your plan", 21f, textPrimary, true).apply { letterSpacing = -0.02f
+        content.addView(text("Choose your plan", 21f, textPrimary, true).apply {
             letterSpacing = -0.02f
         })
         content.addView(text("One clear price. No surprises before checkout.", 12f, textSecondary))
