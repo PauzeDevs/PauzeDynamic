@@ -472,19 +472,26 @@ class IslandService : Service() {
                 textSize = 13f
                 setTextColor(if (IslandState.mediaPlaying) Color.rgb(116, 232, 194) else accent())
                 gravity = Gravity.CENTER
-                setPadding(0, 0, dp(6), 0)
+                setPadding(0, 0, dp(7), 0)
             }
             liveDotView = dot
             header.addView(dot)
-            header.addView(label("LIVE ACTIVITY", 9.5f, Color.rgb(174, 177, 187)).apply {
-                letterSpacing = 0.12f
+            val activityTitle = when (panelPage) {
+                0 -> if (controller != null && IslandState.title != "PauzeX") "Now Playing" else "Music"
+                1 -> IslandState.notificationPreview?.appLabel ?: "Notifications"
+                else -> if (IslandState.timerEndMillis > System.currentTimeMillis()) "Timer Running" else "Quick Timer"
+            }
+            header.addView(label(activityTitle, 11f, Color.rgb(225, 227, 233)).apply {
+                maxLines = 1
+                letterSpacing = 0.01f
             }, LinearLayout.LayoutParams(0, -2, 1f))
             val collapse = TextView(this).apply {
                 text = "⌄"
-                textSize = 22f
+                textSize = 21f
                 gravity = Gravity.CENTER
                 setTextColor(Color.rgb(208, 210, 218))
                 background = roundBackground(Color.rgb(30, 32, 38), dp(14), Color.rgb(48, 50, 58))
+                contentDescription = "Collapse island"
                 setOnClickListener {
                     expanded = false
                     animateToggle()
@@ -495,37 +502,7 @@ class IslandService : Service() {
             view.addView(header)
 
             view.addView(View(this).apply { setBackgroundColor(Color.rgb(38, 40, 47)) },
-                LinearLayout.LayoutParams(-1, dp(1)).apply { topMargin = dp(10); bottomMargin = dp(10) })
-
-            val tabs = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-            }
-            listOf("Music", "Alerts", "Tools").forEachIndexed { index, title ->
-                val selected = panelPage == index
-                val tab = TextView(this).apply {
-                    text = title
-                    textSize = 11f
-                    typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-                    gravity = Gravity.CENTER
-                    setTextColor(if (selected) Color.WHITE else Color.rgb(147, 150, 160))
-                    background = roundBackground(
-                        if (selected) Color.rgb(38, 40, 47) else Color.TRANSPARENT,
-                        dp(12),
-                        if (selected) Color.rgb(58, 60, 69) else Color.TRANSPARENT
-                    )
-                    setOnClickListener {
-                        if (panelPage != index) {
-                            panelPage = index
-                            render()
-                        }
-                    }
-                }
-                tabs.addView(tab, LinearLayout.LayoutParams(0, dp(32), 1f).apply {
-                    if (index > 0) leftMargin = dp(5)
-                })
-            }
-            view.addView(tabs, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(6) })
+                LinearLayout.LayoutParams(-1, dp(1)).apply { topMargin = dp(10); bottomMargin = dp(9) })
 
             when (panelPage) {
                 0 -> renderMedia(view)
