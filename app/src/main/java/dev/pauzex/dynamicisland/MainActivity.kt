@@ -144,6 +144,11 @@ class MainActivity : Activity() {
         preview.addView(text("●  PAUZEX  ·  READY", 12f, Color.WHITE, true).apply { gravity = Gravity.CENTER })
         preview.addView(text("Media · Notification actions · Timers · Battery", 11f, Color.LTGRAY).apply { gravity = Gravity.CENTER })
         root.addView(preview, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(22); bottomMargin = dp(6) })
+        root.addView(button(
+            if (prefs.getBoolean("pro_unlocked", false)) "PAUZEX PRO  ·  ACTIVE" else "Explore PauzeX Pro  ·  ₹200/week"
+        ) {
+            startActivity(Intent(this, ProActivity::class.java))
+        }, marginParams())
 
         root.addView(section("Permissions & controls"))
         root.addView(button("Allow display over other apps  ↗") {
@@ -197,6 +202,32 @@ class MainActivity : Activity() {
         root.addView(toggle("Low-battery warning (15% or less)", "show_low_battery"))
         root.addView(toggle("Notification progress bars", "show_progress"))
 
+        if (prefs.getBoolean("pro_unlocked", false)) {
+            root.addView(section("Pro · low-battery threshold"))
+            val savedThreshold = prefs.getInt("low_battery_threshold", 15).coerceIn(5, 30)
+            val thresholdLabel = text("Show low-battery warning at ${savedThreshold}%", 13f, Color.LTGRAY)
+            root.addView(thresholdLabel)
+            root.addView(SeekBar(this).apply {
+                max = 25
+                progress = savedThreshold - 5
+                progressTintList = ColorStateList.valueOf(accent)
+                thumbTintList = ColorStateList.valueOf(accent)
+                setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                        val threshold = 5 + progress
+                        thresholdLabel.text = "Show low-battery warning at ${threshold}%"
+                        if (fromUser) prefs.edit().putInt("low_battery_threshold", threshold).apply()
+                    }
+                    override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+                    override fun onStopTrackingTouch(seekBar: SeekBar?) { refreshOverlay() }
+                })
+            }, LinearLayout.LayoutParams(-1, dp(44)))
+        } else {
+            root.addView(button("Unlock custom battery alerts with Pro  ↗") {
+                startActivity(Intent(this, ProActivity::class.java))
+            }, marginParams())
+        }
+
         root.addView(section("Accent colour"))
         val colors = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         listOf("#8B9CFF", "#70E1C1", "#FF9F70", "#F38BCB", "#FFFFFF").forEach { hex ->
@@ -221,6 +252,36 @@ class MainActivity : Activity() {
             })
         }
         root.addView(colors)
+
+        root.addView(section("Pro themes"))
+        if (prefs.getBoolean("pro_unlocked", false)) {
+            val themes = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+            listOf(
+                listOf("Midnight", "midnight"),
+                listOf("Emerald", "emerald"),
+                listOf("Violet", "violet"),
+                listOf("Graphite", "graphite")
+            ).chunked(2).forEach { rowThemes ->
+                val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+                rowThemes.forEach { item ->
+                    row.addView(button(if (prefs.getString("pill_theme", "classic") == item[1]) "✓ ${item[0]}" else item[0]) {
+                        prefs.edit().putString("pill_theme", item[1]).apply()
+                        refreshOverlay()
+                        recreate()
+                    }, LinearLayout.LayoutParams(0, -2, 1f).apply {
+                        rightMargin = dp(5)
+                        bottomMargin = dp(5)
+                    })
+                }
+                themes.addView(row)
+            }
+            root.addView(themes)
+        } else {
+            root.addView(button("Unlock four exclusive island themes  ↗") {
+                startActivity(Intent(this, ProActivity::class.java))
+            }, marginParams())
+        }
+
         root.addView(text("Notification filters become available after apps have posted notifications while notification access is enabled. Media controls depend on each player's exposed Android media-session actions.", 12f, Color.GRAY)
             .apply { setPadding(0, dp(20), 0, 0) })
         setContentView(ScrollView(this).apply {
