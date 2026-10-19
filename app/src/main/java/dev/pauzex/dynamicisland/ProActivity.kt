@@ -179,6 +179,7 @@ class ProActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(bg)
         }
+        SystemBarInsets.apply(root)
 
         val scroll = ScrollView(this).apply { isFillViewport = true }
         val content = LinearLayout(this).apply {
