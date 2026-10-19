@@ -135,4 +135,10 @@ Released under the [MIT License](LICENSE).
 
 <sub>Android, with a little more life.</sub>
 
+---
+
+### 🛠️ Development note
+
+<sub>Approximately 90% human-coded, with AI assistance used to identify, troubleshoot, and fix errors or bugs found during development. Changes should still be reviewed and tested; automated fixes do not guarantee that every issue has been found.</sub>
+
 </div>
