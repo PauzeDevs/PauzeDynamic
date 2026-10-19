@@ -15,8 +15,12 @@ class IslandNotificationListener : NotificationListenerService() {
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
-        // Ignore our own persistent foreground-service notification; otherwise it masks real notifications.
-        if (sbn.packageName == packageName) return
+        // Never surface our own foreground-service notification as a live notification.
+        // Remove a stale snapshot too, e.g. when upgrading from a build that didn't filter it.
+        if (sbn.packageName == packageName) {
+            removeSnapshot(sbn.key)
+            return
+        }
         val notification = sbn.notification ?: return
         val prefs = getSharedPreferences(IslandService.PREFS, MODE_PRIVATE)
         val blocked = prefs.getStringSet("blocked_notification_apps", emptySet()) ?: emptySet()
