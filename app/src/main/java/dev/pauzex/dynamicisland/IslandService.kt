@@ -375,7 +375,9 @@ class IslandService : Service() {
      * radius are interpolated together so the pill grows into its panel instead of snapping.
      */
     private fun animateToggle() {
-        animator?.cancel()
+        val runningMorph = animator
+        animator = null
+        runningMorph?.cancel()
         pill?.animate()?.cancel()
         pendingMorphAnimation = true
     }
@@ -662,7 +664,9 @@ class IslandService : Service() {
                 runCatching { wm.updateViewLayout(view, params) }
                 view.scaleX = 0.985f
                 view.scaleY = 0.985f
-                animator?.cancel()
+                val previousMorph = animator
+                animator = null
+                previousMorph?.cancel()
                 val morph = ValueAnimator.ofFloat(0f, 1f)
                 animator = morph
                 morph.apply {
