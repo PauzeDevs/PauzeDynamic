@@ -104,12 +104,13 @@ class MainActivity : Activity() {
             }
             .setPositiveButton("Save") { _, _ ->
                 prefs.edit().putStringSet("blocked_notification_apps", blocked.toSet()).apply()
-                val current = IslandState.notificationPreview
-                if (current != null && current.packageName in blocked) {
-                    IslandState.notificationPreview = null
-                    IslandState.downloadProgress = -1
-                    IslandState.changed()
-                }
+                // Re-select the newest notification that remains allowed by the updated filter.
+                // Keep the listener's snapshot cache intact so changing the filter back can restore
+                // still-active notifications rather than leaving the island blank.
+                IslandState.notificationPreview =
+                    IslandState.notificationPreviews.firstOrNull { it.packageName !in blocked }
+                IslandState.downloadProgress = -1
+                IslandState.changed()
                 refreshOverlay()
                 Toast.makeText(this, "Notification filters saved.", Toast.LENGTH_SHORT).show()
             }
