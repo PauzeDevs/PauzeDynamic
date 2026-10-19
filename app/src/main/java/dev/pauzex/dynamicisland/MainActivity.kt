@@ -21,6 +21,7 @@ class MainActivity : Activity() {
     private val bg = Color.rgb(8, 9, 14)
     private val card = Color.rgb(17, 19, 28)
     private val accent = Color.rgb(139, 156, 255)
+    private var lastProEntitled: Boolean? = null
 
     private fun dp(n: Int) = (n * resources.displayMetrics.density).toInt()
 
@@ -169,7 +170,7 @@ class MainActivity : Activity() {
         }, marginParams())
 
         root.addView(section("PauzeX Pro"))
-        root.addView(text("Unlock premium accent palettes and upcoming layout packs.", 13f, Color.LTGRAY))
+        root.addView(text("Unlock exclusive island themes, custom countdowns, live pulse and adjustable battery alerts.", 13f, Color.LTGRAY))
         root.addView(button(if (prefs.getBoolean("pro_entitled", false)) "Manage PauzeX Pro  ↗" else "Explore Pro plans  ↗") {
             startActivity(Intent(this, ProActivity::class.java))
         }, marginParams())
@@ -334,6 +335,16 @@ class MainActivity : Activity() {
             isFillViewport = true
             addView(root, ViewGroup.LayoutParams(-1, -2))
         })
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val nowProEntitled = prefs.getBoolean("pro_entitled", false)
+        if (lastProEntitled != null && lastProEntitled != nowProEntitled) {
+            refreshOverlay()
+            recreate()
+        }
+        lastProEntitled = nowProEntitled
     }
 
     private fun marginParams() = LinearLayout.LayoutParams(-1, -2).apply {
