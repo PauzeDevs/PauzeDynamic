@@ -826,33 +826,12 @@ class IslandService : Service() {
         }
 
         parent.addView(actionButton("Custom duration  ·  Pro", prominent = false) {
-            if (!prefs.getBoolean("pro_entitled", false)) {
-                startActivity(Intent(this, ProActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            val destination = if (prefs.getBoolean("pro_entitled", false)) {
+                CustomTimerActivity::class.java
             } else {
-                val input = EditText(this).apply {
-                    inputType = android.text.InputType.TYPE_CLASS_NUMBER
-                    hint = "Minutes (1–720)"
-                    setText("30")
-                    setSelection(text.length)
-                }
-                AlertDialog.Builder(this)
-                    .setTitle("Custom countdown")
-                    .setMessage("Choose a duration between 1 minute and 12 hours.")
-                    .setView(input)
-                    .setNegativeButton("Cancel", null)
-                    .setPositiveButton("Start timer") { _, _ ->
-                        val minutes = input.text.toString().toIntOrNull()
-                        if (minutes == null || minutes !in 1..720) {
-                            Toast.makeText(this, "Enter a number from 1 to 720.", Toast.LENGTH_SHORT).show()
-                        } else {
-                            IslandState.timerEndMillis = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(minutes.toLong())
-                            IslandState.timerFinishedUntilMillis = 0L
-                            IslandState.changed()
-                            render()
-                        }
-                    }
-                    .show()
+                ProActivity::class.java
             }
+            startActivity(Intent(this, destination).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         }, LinearLayout.LayoutParams(-1, dp(40)).apply { topMargin = dp(9) })
     }
 
