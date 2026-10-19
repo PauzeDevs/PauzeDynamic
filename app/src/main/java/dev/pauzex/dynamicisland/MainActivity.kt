@@ -21,6 +21,7 @@ class MainActivity : Activity() {
     private val bg = Color.rgb(8, 9, 14)
     private val card = Color.rgb(17, 19, 28)
     private val accent = Color.rgb(139, 156, 255)
+    private var lastProEntitled: Boolean? = null
 
     private fun dp(n: Int) = (n * resources.displayMetrics.density).toInt()
 
@@ -150,7 +151,20 @@ class MainActivity : Activity() {
             startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
         }, marginParams())
         root.addView(button("Enable notification access  ↗") {
-            startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+            AlertDialog.Builder(this)
+                .setTitle("Notification access")
+                .setMessage(
+                    "PauzeX Dynamic Island can read notification content only after you explicitly enable Android notification access. " +
+                    "It uses notification titles, text, app names and available action buttons to show previews in the floating island. " +
+                    "Notifications may contain sensitive information. Choose which apps are shown using the notification filters. " +
+                    "This app does not declare the INTERNET permission; notification processing is performed on this device. " +
+                    "You can revoke access at any time in Android Settings."
+                )
+                .setPositiveButton("Continue to Settings") { _, _ ->
+                    startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
         }, marginParams())
         root.addView(button("Start Dynamic Island") { startIsland() }, marginParams())
         root.addView(button("Stop Dynamic Island") {
@@ -169,7 +183,7 @@ class MainActivity : Activity() {
         }, marginParams())
 
         root.addView(section("PauzeX Pro"))
-        root.addView(text("Unlock premium accent palettes and upcoming layout packs.", 13f, Color.LTGRAY))
+        root.addView(text("Unlock exclusive island themes, custom countdowns, live pulse and adjustable battery alerts.", 13f, Color.LTGRAY))
         root.addView(button(if (prefs.getBoolean("pro_entitled", false)) "Manage PauzeX Pro  ↗" else "Explore Pro plans  ↗") {
             startActivity(Intent(this, ProActivity::class.java))
         }, marginParams())
@@ -217,6 +231,32 @@ class MainActivity : Activity() {
         root.addView(toggle("Battery and charging status", "show_battery"))
         root.addView(toggle("Low-battery warning (15% or less)", "show_low_battery"))
         root.addView(toggle("Notification progress bars", "show_progress"))
+
+        if (prefs.getBoolean("pro_entitled", false)) {
+            root.addView(section("Pro · custom battery alert"))
+            val savedThreshold = prefs.getInt("low_battery_threshold", 15).coerceIn(5, 30)
+            val thresholdLabel = text("Warn at ${savedThreshold}% battery", 13f, Color.LTGRAY)
+            root.addView(thresholdLabel)
+            root.addView(SeekBar(this).apply {
+                max = 25
+                progress = savedThreshold - 5
+                progressTintList = ColorStateList.valueOf(accent)
+                thumbTintList = ColorStateList.valueOf(accent)
+                setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                        val threshold = 5 + progress
+                        thresholdLabel.text = "Warn at ${threshold}% battery"
+                        if (fromUser) prefs.edit().putInt("low_battery_threshold", threshold).apply()
+                    }
+                    override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+                    override fun onStopTrackingTouch(seekBar: SeekBar?) { refreshOverlay() }
+                })
+            }, LinearLayout.LayoutParams(-1, dp(44)))
+        } else {
+            root.addView(button("Unlock custom battery alerts with Pro  ↗") {
+                startActivity(Intent(this, ProActivity::class.java))
+            }, marginParams())
+        }
 
         root.addView(section("Accent colour"))
         val colors = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -271,12 +311,53 @@ class MainActivity : Activity() {
         colors.addView(colorRow)
         root.addView(colors)
         root.addView(text("Premium palette colours are locked until PauzeX Pro is active.", 10.5f, Color.GRAY))
-        root.addView(text("Notification filters become available after apps have posted notifications while notification access is enabled. Media controls depend on each player's exposed Android media-session actions.", 12f, Color.GRAY)
+
+        root.addView(section("Island themes"))
+        if (prefs.getBoolean("pro_entitled", false)) {
+            val themeList = listOf(
+                "Midnight" to "midnight",
+                "Emerald" to "emerald",
+                "Violet" to "violet",
+                "Graphite" to "graphite"
+            )
+            themeList.chunked(2).forEach { themePair ->
+                val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+                themePair.forEach { (label, key) ->
+                    row.addView(button(
+                        if (prefs.getString("pill_theme", "classic") == key) "✓  $label" else label
+                    ) {
+                        prefs.edit().putString("pill_theme", key).apply()
+                        refreshOverlay()
+                        recreate()
+                    }, LinearLayout.LayoutParams(0, -2, 1f).apply {
+                        rightMargin = dp(6)
+                        bottomMargin = dp(6)
+                    })
+                }
+                root.addView(row)
+            }
+        } else {
+            root.addView(button("Unlock four island themes with Pro  ↗") {
+                startActivity(Intent(this, ProActivity::class.java))
+            }, marginParams())
+        }
+
+        root.addView(text("Swipe horizontally across the expanded island to switch Music, Alerts and Tools. Swipe down to collapse it. Notification filters become available after apps have posted notifications while access is enabled.", 12f, Color.GRAY)
             .apply { setPadding(0, dp(20), 0, 0) })
         setContentView(ScrollView(this).apply {
             isFillViewport = true
             addView(root, ViewGroup.LayoutParams(-1, -2))
         })
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val nowProEntitled = prefs.getBoolean("pro_entitled", false)
+        if (lastProEntitled != null && lastProEntitled != nowProEntitled) {
+            refreshOverlay()
+            recreate()
+        }
+        lastProEntitled = nowProEntitled
     }
 
     private fun marginParams() = LinearLayout.LayoutParams(-1, -2).apply {

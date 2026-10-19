@@ -41,8 +41,12 @@ class IslandService : Service() {
     private var startY = 0
     private var moved = false
     private var isSeeking = false
+    private var horizontalGesture = false
+    private var verticalDismissGesture = false
+    private var touchStartedExpanded = false
     private var liveDotView: View? = null
     private var pulseAnimator: ValueAnimator? = null
+    private val waveAnimators = mutableListOf<ValueAnimator>()
     private var headlineTextView: TextView? = null
     private var timerLabelView: TextView? = null
     private var seekBarView: SeekBar? = null
@@ -232,14 +236,21 @@ class IslandService : Service() {
         }
     }
 
-    private fun pillBackground() = GradientDrawable(
-        GradientDrawable.Orientation.TOP_BOTTOM,
-        if (expanded) intArrayOf(Color.rgb(17, 18, 22), Color.rgb(5, 6, 8))
-        else intArrayOf(Color.rgb(8, 9, 12), Color.rgb(3, 4, 6))
-    ).apply {
-        shape = GradientDrawable.RECTANGLE
-        cornerRadius = dp(if (expanded) 28 else 32).toFloat()
-        setStroke(dp(1), Color.rgb(43, 45, 52))
+    private fun pillBackground(): GradientDrawable {
+        val savedTheme = prefs.getString("pill_theme", "classic") ?: "classic"
+        val theme = if (prefs.getBoolean("pro_entitled", false)) savedTheme else "classic"
+        val colors = when (theme) {
+            "midnight" -> intArrayOf(Color.rgb(17, 23, 43), Color.rgb(5, 7, 15))
+            "emerald" -> intArrayOf(Color.rgb(12, 32, 28), Color.rgb(4, 10, 9))
+            "violet" -> intArrayOf(Color.rgb(31, 17, 43), Color.rgb(8, 5, 12))
+            "graphite" -> intArrayOf(Color.rgb(29, 30, 34), Color.rgb(7, 8, 10))
+            else -> intArrayOf(Color.rgb(12, 13, 17), Color.rgb(3, 4, 6))
+        }
+        return GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, colors).apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = dp(if (expanded) 29 else 32).toFloat()
+            setStroke(dp(1), Color.rgb(43, 45, 52))
+        }
     }
 
     private fun attachOverlay() {
@@ -270,23 +281,46 @@ class IslandService : Service() {
                         startX = location[0]
                         startY = location[1]
                         moved = false
+                        touchStartedExpanded = expanded
+                        horizontalGesture = false
+                        verticalDismissGesture = false
                         true
                     }
                     MotionEvent.ACTION_MOVE -> {
                         val dx = (event.rawX - downRawX).toInt()
                         val dy = (event.rawY - downRawY).toInt()
-                        if (kotlin.math.abs(dx) > dp(6) || kotlin.math.abs(dy) > dp(6)) moved = true
-                        if (moved) {
-                            params.gravity = Gravity.TOP or Gravity.START
-                            val maxX = (resources.displayMetrics.widthPixels - (pill?.width ?: dp(prefs.getInt("pill_width", 210)))).coerceAtLeast(0)
-                            params.x = (startX + dx).coerceIn(0, maxX)
-                            params.y = (startY + dy).coerceAtLeast(dp(4))
-                            runCatching { wm.updateViewLayout(touchedView, params) }
+                        if (touchStartedExpanded) {
+                            if (kotlin.math.abs(dx) > dp(38) && kotlin.math.abs(dx) > kotlin.math.abs(dy) * 1.2f) {
+                                horizontalGesture = true
+                                moved = true
+                            } else if (dy > dp(42) && dy > kotlin.math.abs(dx) * 1.2f) {
+                                verticalDismissGesture = true
+                                moved = true
+                            } else if (kotlin.math.abs(dx) > dp(8) || kotlin.math.abs(dy) > dp(8)) {
+                                moved = true
+                            }
+                        } else {
+                            if (kotlin.math.abs(dx) > dp(6) || kotlin.math.abs(dy) > dp(6)) moved = true
+                            if (moved) {
+                                params.gravity = Gravity.TOP or Gravity.START
+                                val maxX = (resources.displayMetrics.widthPixels - (pill?.width ?: dp(prefs.getInt("pill_width", 210)))).coerceAtLeast(0)
+                                params.x = (startX + dx).coerceIn(0, maxX)
+                                params.y = (startY + dy).coerceAtLeast(dp(4))
+                                runCatching { wm.updateViewLayout(touchedView, params) }
+                            }
                         }
                         true
                     }
                     MotionEvent.ACTION_UP -> {
-                        if (moved) {
+                        val dx = (event.rawX - downRawX).toInt()
+                        if (horizontalGesture) {
+                            panelPage = (panelPage + if (dx < 0) 1 else 2) % 3
+                            render()
+                        } else if (verticalDismissGesture) {
+                            expanded = false
+                            animateToggle()
+                            render()
+                        } else if (moved && !touchStartedExpanded) {
                             prefs.edit()
                                 .putBoolean("custom_position", true)
                                 .putInt("position_x", params.x)
@@ -294,6 +328,8 @@ class IslandService : Service() {
                                 .apply()
                         }
                         touchedView.performClick()
+                        horizontalGesture = false
+                        verticalDismissGesture = false
                         true
                     }
                     else -> false
@@ -347,7 +383,7 @@ class IslandService : Service() {
                 "Timer · " + timerRemaining()
             IslandState.timerFinishedUntilMillis > System.currentTimeMillis() -> "Timer finished"
             prefs.getBoolean("show_low_battery", true) && !IslandState.charging &&
-                IslandState.batteryPercent in 0..15 -> "⚠ Low battery · ${IslandState.batteryPercent}%"
+                IslandState.batteryPercent in 0..prefs.getInt("low_battery_threshold", 15).coerceIn(5, 30) -> "⚠ Low battery · ${IslandState.batteryPercent}%"
             prefs.getBoolean("show_battery", true) && IslandState.charging ->
                 "⚡ Charging · " + if (IslandState.batteryPercent >= 0) "${IslandState.batteryPercent}%" else ""
             prefs.getBoolean("show_progress", true) && IslandState.downloadProgress >= 0 ->
@@ -406,26 +442,80 @@ class IslandService : Service() {
         )
         view.background = pillBackground()
 
+        waveAnimators.forEach { it.cancel() }
+        waveAnimators.clear()
         if (!expanded) {
             val compact = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER
             }
-            val dot = TextView(this).apply {
-                text = "•"
-                textSize = 16f
-                setTextColor(if (IslandState.mediaPlaying) Color.rgb(116, 232, 194) else accent())
-                gravity = Gravity.CENTER
-                setPadding(0, 0, dp(7), 0)
+            val hasMedia = prefs.getBoolean("show_media", true) && controller != null && IslandState.title != "PauzeX"
+            if (hasMedia && IslandState.albumArt != null) {
+                val miniArt = ImageView(this).apply {
+                    setImageBitmap(IslandState.albumArt)
+                    scaleType = ImageView.ScaleType.CENTER_CROP
+                    background = roundBackground(Color.rgb(28, 30, 36), dp(7), Color.rgb(54, 56, 63))
+                    clipToOutline = true
+                    contentDescription = "Album artwork"
+                }
+                compact.addView(miniArt, LinearLayout.LayoutParams(dp(24), dp(24)).apply { rightMargin = dp(8) })
+            } else {
+                val dot = TextView(this).apply {
+                    text = when {
+                        hasMedia -> "♫"
+                        IslandState.timerEndMillis > System.currentTimeMillis() -> "◷"
+                        prefs.getBoolean("show_notifications", true) && IslandState.notificationPreview != null -> "●"
+                        else -> "•"
+                    }
+                    textSize = if (hasMedia) 16f else 14f
+                    setTextColor(if (IslandState.mediaPlaying) Color.rgb(116, 232, 194) else accent())
+                    gravity = Gravity.CENTER
+                    setPadding(0, 0, dp(7), 0)
+                }
+                liveDotView = dot
+                compact.addView(dot)
             }
-            liveDotView = dot
-            compact.addView(dot)
-            headlineTextView = label(headline(), 11.5f).apply {
+            headlineTextView = label(headline().removePrefix("♫ ").removePrefix("● "), 11.5f).apply {
                 maxLines = 1
-                letterSpacing = 0.01f
+                letterSpacing = 0.005f
                 setTextColor(Color.rgb(246, 246, 249))
             }
             compact.addView(headlineTextView, LinearLayout.LayoutParams(0, -2, 1f))
+            if (hasMedia) {
+                val waveform = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER
+                    setPadding(dp(7), 0, dp(1), 0)
+                    importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                }
+                val heights = listOf(6, 13, 9, 15)
+                heights.forEachIndexed { index, height ->
+                    val bar = View(this).apply {
+                        background = GradientDrawable().apply {
+                            cornerRadius = dp(2).toFloat()
+                            setColor(Color.rgb(116, 232, 194))
+                        }
+                        scaleY = if (IslandState.mediaPlaying) 0.65f else 0.3f
+                    }
+                    waveform.addView(bar, LinearLayout.LayoutParams(dp(3), dp(height)).apply {
+                        if (index > 0) leftMargin = dp(3)
+                    })
+                    if (IslandState.mediaPlaying) {
+                        ValueAnimator.ofFloat(0.25f, 1f).apply {
+                            duration = 480L + index * 130L
+                            startDelay = index * 95L
+                            repeatCount = ValueAnimator.INFINITE
+                            repeatMode = ValueAnimator.REVERSE
+                            addUpdateListener { animation ->
+                                if (bar.parent != null) bar.scaleY = animation.animatedValue as Float
+                            }
+                            waveAnimators.add(this)
+                            start()
+                        }
+                    }
+                }
+                compact.addView(waveform)
+            }
             view.addView(compact)
         } else {
             val header = LinearLayout(this).apply {
@@ -437,19 +527,26 @@ class IslandService : Service() {
                 textSize = 13f
                 setTextColor(if (IslandState.mediaPlaying) Color.rgb(116, 232, 194) else accent())
                 gravity = Gravity.CENTER
-                setPadding(0, 0, dp(6), 0)
+                setPadding(0, 0, dp(7), 0)
             }
             liveDotView = dot
             header.addView(dot)
-            header.addView(label("LIVE ACTIVITY", 9.5f, Color.rgb(174, 177, 187)).apply {
-                letterSpacing = 0.12f
+            val activityTitle = when (panelPage) {
+                0 -> if (controller != null && IslandState.title != "PauzeX") "Now Playing" else "Music"
+                1 -> IslandState.notificationPreview?.appLabel ?: "Notifications"
+                else -> if (IslandState.timerEndMillis > System.currentTimeMillis()) "Timer Running" else "Quick Timer"
+            }
+            header.addView(label(activityTitle, 11f, Color.rgb(225, 227, 233)).apply {
+                maxLines = 1
+                letterSpacing = 0.01f
             }, LinearLayout.LayoutParams(0, -2, 1f))
             val collapse = TextView(this).apply {
                 text = "⌄"
-                textSize = 22f
+                textSize = 21f
                 gravity = Gravity.CENTER
                 setTextColor(Color.rgb(208, 210, 218))
                 background = roundBackground(Color.rgb(30, 32, 38), dp(14), Color.rgb(48, 50, 58))
+                contentDescription = "Collapse island"
                 setOnClickListener {
                     expanded = false
                     animateToggle()
@@ -460,37 +557,7 @@ class IslandService : Service() {
             view.addView(header)
 
             view.addView(View(this).apply { setBackgroundColor(Color.rgb(38, 40, 47)) },
-                LinearLayout.LayoutParams(-1, dp(1)).apply { topMargin = dp(10); bottomMargin = dp(10) })
-
-            val tabs = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-            }
-            listOf("Music", "Alerts", "Tools").forEachIndexed { index, title ->
-                val selected = panelPage == index
-                val tab = TextView(this).apply {
-                    text = title
-                    textSize = 11f
-                    typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-                    gravity = Gravity.CENTER
-                    setTextColor(if (selected) Color.WHITE else Color.rgb(147, 150, 160))
-                    background = roundBackground(
-                        if (selected) Color.rgb(38, 40, 47) else Color.TRANSPARENT,
-                        dp(12),
-                        if (selected) Color.rgb(58, 60, 69) else Color.TRANSPARENT
-                    )
-                    setOnClickListener {
-                        if (panelPage != index) {
-                            panelPage = index
-                            render()
-                        }
-                    }
-                }
-                tabs.addView(tab, LinearLayout.LayoutParams(0, dp(32), 1f).apply {
-                    if (index > 0) leftMargin = dp(5)
-                })
-            }
-            view.addView(tabs, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(6) })
+                LinearLayout.LayoutParams(-1, dp(1)).apply { topMargin = dp(10); bottomMargin = dp(9) })
 
             when (panelPage) {
                 0 -> renderMedia(view)
@@ -514,7 +581,7 @@ class IslandService : Service() {
             val footerText = when {
                 IslandState.batteryPercent < 0 -> null
                 IslandState.charging -> "⚡  Charging · ${IslandState.batteryPercent}%"
-                prefs.getBoolean("show_low_battery", true) && IslandState.batteryPercent <= 15 -> "Battery low · ${IslandState.batteryPercent}%"
+                prefs.getBoolean("show_low_battery", true) && IslandState.batteryPercent <= prefs.getInt("low_battery_threshold", 15).coerceIn(5, 30) -> "Battery low · ${IslandState.batteryPercent}%"
                 else -> "Battery · ${IslandState.batteryPercent}%"
             }
             if (footerText != null) {
@@ -789,6 +856,15 @@ class IslandService : Service() {
                 setPadding(0, dp(11), 0, dp(4))
             })
         }
+
+        parent.addView(actionButton("Custom duration  ·  Pro", prominent = false) {
+            val destination = if (prefs.getBoolean("pro_entitled", false)) {
+                CustomTimerActivity::class.java
+            } else {
+                ProActivity::class.java
+            }
+            startActivity(Intent(this, destination).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }, LinearLayout.LayoutParams(-1, dp(40)).apply { topMargin = dp(9) })
     }
 
     private fun actionButton(
@@ -834,6 +910,8 @@ class IslandService : Service() {
         animator?.cancel()
         pulseAnimator?.cancel()
         pulseAnimator = null
+        waveAnimators.forEach { it.cancel() }
+        waveAnimators.clear()
         pill?.let { runCatching { wm.removeView(it) } }
         pill = null
         overlayParams = null

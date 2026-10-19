@@ -239,12 +239,13 @@ class ProActivity : Activity() {
         content.addView(text("PAUZEX PRO INCLUDES", 10f, proAccent, true))
         addGap(content, 6)
         listOf(
-            "Premium accent palettes and visual themes",
+            "Premium accent palettes and exclusive island surface themes",
             "Subtle animated live indicator while music is playing",
-            "Separate Music, Alerts and Tools activity views",
+            "Swipe between Music, Alerts and Tools; swipe down to collapse",
             "Expanded media controls with artwork and seeking",
             "Notification actions, inline replies and app filters",
-            "Quick timers, low-battery status and layout tuning",
+            "Custom countdowns from 1 minute up to 12 hours",
+            "Adjustable low-battery warning threshold from 5% to 30%",
             "Future Pro theme and layout drops"
         ).forEach { perk ->
             val row = LinearLayout(this).apply {
