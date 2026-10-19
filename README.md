@@ -120,8 +120,7 @@ Some manufacturers apply additional background-service restrictions. If the pill
 - Notification app filters list packages only after their notifications have been observed. Apps can change their notification action layout without notice.
 - This uses Android notification `RemoteInput` only for notifications that expose an inline-reply action; it cannot create reply support for apps that do not provide one.
 - Timer presets are timers inside PauzeX Dynamic Island; they do not mirror or control timers from third-party Clock apps.
-- Maps/live-navigation cards, call-state indicators, low-battery alarms, and an audio visualizer are not implemented yet.
-- Call-state indicators are not implemented.
+- Dedicated maps/live-navigation cards, call-state indicators, audible low-battery alarms, and an audio visualizer are not implemented yet. Low battery is shown as an in-island warning only.
 - Battery optimisation and background-service rules differ by Android version and manufacturer.
 - The CI workflow confirms that the project compiles; it does not replace real-device testing.
 
