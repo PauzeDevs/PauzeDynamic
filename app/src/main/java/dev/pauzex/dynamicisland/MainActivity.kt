@@ -73,10 +73,15 @@ class MainActivity : Activity() {
 
     private fun startIsland() {
         if (!Settings.canDrawOverlays(this)) {
+            // Remember the user's explicit start request so returning from Settings can complete it.
+            prefs.edit().putBoolean("pending_island_start", true).apply()
             startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
             return
         }
-        prefs.edit().putBoolean("island_running", true).apply()
+        prefs.edit()
+            .putBoolean("pending_island_start", false)
+            .putBoolean("island_running", true)
+            .apply()
         val intent = Intent(this, IslandService::class.java).setAction(IslandService.ACTION_START)
         if (Build.VERSION.SDK_INT >= 26) startForegroundService(intent) else startService(intent)
     }
@@ -170,7 +175,10 @@ class MainActivity : Activity() {
         }, marginParams())
         root.addView(button("Start Dynamic Island") { startIsland() }, marginParams())
         root.addView(button("Stop Dynamic Island") {
-            prefs.edit().putBoolean("island_running", false).apply()
+            prefs.edit()
+                .putBoolean("island_running", false)
+                .putBoolean("pending_island_start", false)
+                .apply()
             stopService(Intent(this, IslandService::class.java))
         }, marginParams())
         root.addView(button("Choose notification apps  ↗") { showNotificationAppFilters() }, marginParams())
@@ -354,8 +362,14 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
-        // Resume an explicitly enabled island after the user returns from Android Settings.
-        if (prefs.getBoolean("island_running", false) && Settings.canDrawOverlays(this)) {
+        // Complete a pending start request after the user grants overlay access in Settings.
+        val shouldStartIsland = prefs.getBoolean("island_running", false) ||
+            prefs.getBoolean("pending_island_start", false)
+        if (shouldStartIsland && Settings.canDrawOverlays(this)) {
+            prefs.edit()
+                .putBoolean("island_running", true)
+                .putBoolean("pending_island_start", false)
+                .apply()
             val intent = Intent(this, IslandService::class.java).setAction(IslandService.ACTION_START)
             runCatching {
                 if (Build.VERSION.SDK_INT >= 26) startForegroundService(intent) else startService(intent)
