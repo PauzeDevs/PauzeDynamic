@@ -373,29 +373,41 @@ class ProActivity : Activity() {
                 .build()
         }
         val query = QueryProductDetailsParams.newBuilder().setProductList(requested).build()
-        billingClient.queryProductDetailsAsync(query) { result, response ->
-            runOnUiThread {
-                if (result.responseCode == BillingClient.BillingResponseCode.OK) {
-                    response.productDetailsList.forEach { productDetails[it.productId] = it }
-                    updatePriceLabels()
-                    refreshPlanSelection()
-                    val missing = PLANS.filter { plan ->
-                        val details = productDetails[plan.id]
-                        when (plan.productType) {
-                            BillingClient.ProductType.SUBS -> matchingSubscriptionOffer(plan, details) == null
-                            else -> details == null
+        try {
+            billingClient.queryProductDetailsAsync(query) { result, response ->
+                runOnUiThread {
+                    try {
+                        if (result.responseCode == BillingClient.BillingResponseCode.OK) {
+                            response.productDetailsList.forEach { productDetails[it.productId] = it }
+                            updatePriceLabels()
+                            refreshPlanSelection()
+                            val missing = PLANS.filter { plan ->
+                                val details = productDetails[plan.id]
+                                when (plan.productType) {
+                                    BillingClient.ProductType.SUBS -> matchingSubscriptionOffer(plan, details) == null
+                                    else -> details == null
+                                }
+                            }
+                            statusLabel.text = if (missing.isEmpty()) {
+                                "Plans and expected billing periods loaded from Google Play."
+                            } else {
+                                "Missing product or expected base plan: " + missing.joinToString { it.title } +
+                                    ". Check the product IDs and base plan periods in Play Console."
+                            }
+                        } else {
+                            statusLabel.text = "Couldn't load Play prices: ${result.debugMessage.ifBlank { "try again" }}"
                         }
+                    } catch (error: Exception) {
+                        statusLabel.text = "Couldn't read Google Play plans: " +
+                            (error.message?.takeIf { it.isNotBlank() } ?: error.javaClass.simpleName)
+                        android.util.Log.e("PauzeXPro", "Unable to process product catalogue response", error)
                     }
-                    statusLabel.text = if (missing.isEmpty()) {
-                        "Plans and expected billing periods loaded from Google Play."
-                    } else {
-                        "Missing product or expected base plan: " + missing.joinToString { it.title } +
-                            ". Check the product IDs and base plan periods in Play Console."
-                    }
-                } else {
-                    statusLabel.text = "Couldn't load Play prices: ${result.debugMessage.ifBlank { "try again" }}"
                 }
             }
+        } catch (error: Exception) {
+            statusLabel.text = "Couldn't query Google Play plans: " +
+                (error.message?.takeIf { it.isNotBlank() } ?: error.javaClass.simpleName)
+            android.util.Log.e("PauzeXPro", "Unable to query product catalogue", error)
         }
     }
 
@@ -540,12 +552,30 @@ class ProActivity : Activity() {
             }
         }
 
-        billingClient.queryPurchasesAsync(
-            QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.SUBS).build()
-        ) { result, purchases -> completeCheck(result, purchases) }
-        billingClient.queryPurchasesAsync(
-            QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.INAPP).build()
-        ) { result, purchases -> completeCheck(result, purchases) }
+        try {
+            billingClient.queryPurchasesAsync(
+                QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.SUBS).build()
+            ) { result, purchases ->
+                runCatching { completeCheck(result, purchases) }.onFailure { error ->
+                    android.util.Log.e("PauzeXPro", "Unable to process subscription purchases", error)
+                    runOnUiThread { statusLabel.text = "Couldn't check subscriptions. Try again shortly." }
+                }
+            }
+            billingClient.queryPurchasesAsync(
+                QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.INAPP).build()
+            ) { result, purchases ->
+                runCatching { completeCheck(result, purchases) }.onFailure { error ->
+                    android.util.Log.e("PauzeXPro", "Unable to process lifetime purchases", error)
+                    runOnUiThread { statusLabel.text = "Couldn't check lifetime purchase. Try again shortly." }
+                }
+            }
+        } catch (error: Exception) {
+            android.util.Log.e("PauzeXPro", "Unable to query owned purchases", error)
+            runOnUiThread {
+                statusLabel.text = "Google Play couldn't check purchases: " +
+                    (error.message?.takeIf { it.isNotBlank() } ?: error.javaClass.simpleName)
+            }
+        }
     }
 
     private fun handlePurchase(purchase: Purchase) {
