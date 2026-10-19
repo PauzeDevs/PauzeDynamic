@@ -99,7 +99,7 @@ class MainActivity : Activity() {
         listOf("#8B9CFF", "#70E1C1", "#FF9F70", "#F38BCB", "#FFFFFF").forEach { hex ->
             val color = Color.parseColor(hex)
             val swatch = View(this).apply {
-                background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(color); setStroke(dp(2), if (prefs.getString("accent", "#8B9CFF") == hex) Color.WHITE else Color.rgb(50, 52, 65) }
+                background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(color); setStroke(dp(2), if (prefs.getString("accent", "#8B9CFF") == hex) Color.WHITE else Color.rgb(50, 52, 65)) }
                 setOnClickListener { prefs.edit().putString("accent", hex).apply(); refreshOverlay(); recreate() }
             }
             colors.addView(swatch, LinearLayout.LayoutParams(dp(38), dp(38)).apply { rightMargin = dp(14); topMargin = dp(6); bottomMargin = dp(6) })
