@@ -14,6 +14,7 @@ import android.os.*
 import android.provider.Settings
 import android.view.*
 import android.view.animation.DecelerateInterpolator
+import android.view.animation.PathInterpolator
 import android.view.animation.OvershootInterpolator
 import android.widget.*
 import android.animation.ValueAnimator
@@ -262,12 +263,14 @@ class IslandService : Service() {
             "emerald" -> intArrayOf(Color.rgb(12, 32, 28), Color.rgb(4, 10, 9))
             "violet" -> intArrayOf(Color.rgb(31, 17, 43), Color.rgb(8, 5, 12))
             "graphite" -> intArrayOf(Color.rgb(29, 30, 34), Color.rgb(7, 8, 10))
-            else -> intArrayOf(Color.rgb(12, 13, 17), Color.rgb(3, 4, 6))
+            // The default/classic style intentionally uses true #000000, like Apple's island.
+            else -> intArrayOf(Color.BLACK, Color.BLACK)
         }
         return GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, colors).apply {
             shape = GradientDrawable.RECTANGLE
             cornerRadius = cornerRadiusDp * resources.displayMetrics.density
-            setStroke(dp(1), Color.rgb(43, 45, 52))
+            // Avoid an outlined capsule; the black silhouette should blend into black bezels/notches.
+            setStroke(dp(1), if (theme == "classic") Color.BLACK else Color.rgb(43, 45, 52))
         }
     }
 
@@ -393,18 +396,26 @@ class IslandService : Service() {
         pendingMorphAnimation = true
     }
 
+    /**
+     * ValueAnimator is driven by Android's display-vsync animation clock rather than a
+     * hand-written timer. That gives the system a chance to render each available frame;
+     * actual frame rate still depends on the device, OS, and rendering load.
+     */
+    private fun morphDurationMillis(): Long =
+        prefs.getInt("animation_duration_ms", 280).coerceIn(180, 420).toLong()
+
     private fun animateContentIn(container: ViewGroup) {
         val children = (0 until container.childCount).map { container.getChildAt(it) }
         children.forEachIndexed { index, child ->
             child.animate().cancel()
             child.alpha = 0f
-            child.translationY = dp(7).toFloat()
+            child.translationY = dp(6).toFloat()
             child.animate()
                 .alpha(1f)
                 .translationY(0f)
-                .setStartDelay(index * 18L)
-                .setDuration(230L)
-                .setInterpolator(DecelerateInterpolator(1.6f))
+                .setStartDelay(index * 12L)
+                .setDuration(minOf(190L, morphDurationMillis()))
+                .setInterpolator(PathInterpolator(0.18f, 0.82f, 0.24f, 1f))
                 .start()
         }
     }
@@ -655,8 +666,10 @@ class IslandService : Service() {
         if (params != null) {
             val screenWidthDp = (resources.displayMetrics.widthPixels / resources.displayMetrics.density).toInt()
             // Keep the expanded panel inside the usable width even on compact phones.
+            val availableWidthDp = (screenWidthDp - 32).coerceAtLeast(200)
+            val configuredExpandedWidth = prefs.getInt("expanded_width", 360).coerceIn(260, 420)
             val targetWidth = dp(
-                if (expanded) minOf(360, (screenWidthDp - 32).coerceAtLeast(240))
+                if (expanded) minOf(configuredExpandedWidth, availableWidthDp)
                 else prefs.getInt("pill_width", 210).coerceIn(170, 300)
             )
             val maxHeight = (resources.displayMetrics.heightPixels - dp(48)).coerceAtLeast(dp(180))
@@ -681,8 +694,13 @@ class IslandService : Service() {
                 val morph = ValueAnimator.ofFloat(0f, 1f)
                 animator = morph
                 morph.apply {
-                    duration = if (expanded) 430L else 330L
-                    interpolator = OvershootInterpolator(if (expanded) 0.55f else 0.28f)
+                    duration = if (expanded) morphDurationMillis() else (morphDurationMillis() * 0.86f).toLong().coerceAtLeast(160L)
+                    // A restrained spring-like finish avoids the exaggerated overshoot of the old morph.
+                    interpolator = if (expanded) {
+                        PathInterpolator(0.18f, 0.82f, 0.24f, 1f)
+                    } else {
+                        PathInterpolator(0.42f, 0f, 0.78f, 0.35f)
+                    }
                     addUpdateListener { animation ->
                         val t = animation.animatedValue as Float
                         params.width = (previousWidth + (targetWidth - previousWidth) * t).toInt()
