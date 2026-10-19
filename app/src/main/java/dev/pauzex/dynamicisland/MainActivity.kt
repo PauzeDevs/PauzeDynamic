@@ -235,6 +235,46 @@ class MainActivity : Activity() {
         }
         root.addView(width, LinearLayout.LayoutParams(-1, dp(44)))
 
+        val expandedWidthValue = prefs.getInt("expanded_width", 360).coerceIn(260, 420)
+        val expandedWidthLabel = text("Expanded panel width · $expandedWidthValue dp", 13f, Color.LTGRAY)
+        root.addView(expandedWidthLabel)
+        root.addView(SeekBar(this).apply {
+            max = 160
+            progress = expandedWidthValue - 260
+            progressTintList = ColorStateList.valueOf(accent)
+            thumbTintList = ColorStateList.valueOf(accent)
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                    val size = 260 + progress
+                    expandedWidthLabel.text = "Expanded panel width · $size dp"
+                    if (fromUser) prefs.edit().putInt("expanded_width", size).apply()
+                }
+                override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+                override fun onStopTrackingTouch(seekBar: SeekBar?) { refreshOverlay() }
+            })
+        }, LinearLayout.LayoutParams(-1, dp(44)))
+
+        root.addView(section("Apple-style motion"))
+        val durationValue = prefs.getInt("animation_duration_ms", 280).coerceIn(180, 420)
+        val durationLabel = text("Expand/collapse duration · ${durationValue} ms", 13f, Color.LTGRAY)
+        root.addView(durationLabel)
+        root.addView(SeekBar(this).apply {
+            max = 240
+            progress = durationValue - 180
+            progressTintList = ColorStateList.valueOf(accent)
+            thumbTintList = ColorStateList.valueOf(accent)
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                    val duration = 180 + progress
+                    durationLabel.text = "Expand/collapse duration · ${duration} ms"
+                    if (fromUser) prefs.edit().putInt("animation_duration_ms", duration).apply()
+                }
+                override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+                override fun onStopTrackingTouch(seekBar: SeekBar?) { refreshOverlay() }
+            })
+        }, LinearLayout.LayoutParams(-1, dp(44)))
+        root.addView(text("Default surface is pure black. Morphing follows Android's display-vsync clock; sustained 60 fps depends on device performance.", 10.5f, Color.GRAY))
+
         root.addView(section("Live activity modules"))
         root.addView(toggle("Media activity and playback", "show_media"))
         root.addView(toggle("Notification previews and actions", "show_notifications"))
