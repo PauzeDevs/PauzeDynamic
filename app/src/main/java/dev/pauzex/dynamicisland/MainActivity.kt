@@ -37,16 +37,16 @@ class MainActivity : Activity() {
         }
 
     private fun button(value: String, click: () -> Unit) = TextView(this).apply {
-        val primary = value.startsWith("Start Dynamic Island")
+        val primary = value.startsWith("Start Dynamic Island") || value.startsWith("Explore Pro plans") || value.startsWith("Unlock Pro for live pulse")
         val subtle = value.startsWith("Stop Dynamic Island")
         text = value
         textSize = 14.5f
         typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         letterSpacing = -0.005f
         setTextColor(if (primary) Color.rgb(10, 11, 14) else Color.rgb(239, 240, 244))
-        gravity = Gravity.CENTER
-        minHeight = dp(52)
-        setPadding(dp(16), dp(13), dp(16), dp(13))
+        gravity = Gravity.CENTER_VERTICAL or Gravity.START
+        minHeight = dp(56)
+        setPadding(dp(18), dp(14), dp(18), dp(14))
         val fill = when {
             primary -> Color.rgb(242, 243, 247)
             subtle -> Color.rgb(13, 14, 17)
@@ -164,7 +164,7 @@ class MainActivity : Activity() {
             setPadding(0, 0, 0, dp(5))
         })
         root.addView(text(
-            "Live activities, media controls and notifications — together in one compact overlay.",
+            "Your essentials, one quiet glance away.",
             15f, Color.rgb(169, 171, 179)
         ).apply {
             setLineSpacing(dp(2).toFloat(), 1f)
