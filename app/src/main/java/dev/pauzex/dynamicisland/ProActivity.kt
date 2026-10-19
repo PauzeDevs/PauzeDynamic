@@ -447,7 +447,7 @@ class ProActivity : Activity() {
             }
             paramsBuilder.setOfferToken(offer.offerToken)
         } else {
-            details.oneTimePurchaseOfferDetailsList?.firstOrNull()?.let { paramsBuilder.setOfferToken(it.offerToken) }
+            details.oneTimePurchaseOfferDetailsList?.firstOrNull()?.offerToken?.let { token -> paramsBuilder.setOfferToken(token) }
         }
 
         val flow = BillingFlowParams.newBuilder()
