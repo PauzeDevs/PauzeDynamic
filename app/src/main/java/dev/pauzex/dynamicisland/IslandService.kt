@@ -41,6 +41,9 @@ class IslandService : Service() {
     private var startY = 0
     private var moved = false
     private var isSeeking = false
+    private var horizontalGesture = false
+    private var verticalDismissGesture = false
+    private var touchStartedExpanded = false
     private var liveDotView: View? = null
     private var pulseAnimator: ValueAnimator? = null
     private var headlineTextView: TextView? = null
@@ -232,14 +235,21 @@ class IslandService : Service() {
         }
     }
 
-    private fun pillBackground() = GradientDrawable(
-        GradientDrawable.Orientation.TOP_BOTTOM,
-        if (expanded) intArrayOf(Color.rgb(17, 18, 22), Color.rgb(5, 6, 8))
-        else intArrayOf(Color.rgb(8, 9, 12), Color.rgb(3, 4, 6))
-    ).apply {
-        shape = GradientDrawable.RECTANGLE
-        cornerRadius = dp(if (expanded) 28 else 32).toFloat()
-        setStroke(dp(1), Color.rgb(43, 45, 52))
+    private fun pillBackground(): GradientDrawable {
+        val savedTheme = prefs.getString("pill_theme", "classic") ?: "classic"
+        val theme = if (prefs.getBoolean("pro_entitled", false)) savedTheme else "classic"
+        val colors = when (theme) {
+            "midnight" -> intArrayOf(Color.rgb(17, 23, 43), Color.rgb(5, 7, 15))
+            "emerald" -> intArrayOf(Color.rgb(12, 32, 28), Color.rgb(4, 10, 9))
+            "violet" -> intArrayOf(Color.rgb(31, 17, 43), Color.rgb(8, 5, 12))
+            "graphite" -> intArrayOf(Color.rgb(29, 30, 34), Color.rgb(7, 8, 10))
+            else -> intArrayOf(Color.rgb(12, 13, 17), Color.rgb(3, 4, 6))
+        }
+        return GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, colors).apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = dp(if (expanded) 29 else 32).toFloat()
+            setStroke(dp(1), Color.rgb(43, 45, 52))
+        }
     }
 
     private fun attachOverlay() {
@@ -270,23 +280,46 @@ class IslandService : Service() {
                         startX = location[0]
                         startY = location[1]
                         moved = false
+                        touchStartedExpanded = expanded
+                        horizontalGesture = false
+                        verticalDismissGesture = false
                         true
                     }
                     MotionEvent.ACTION_MOVE -> {
                         val dx = (event.rawX - downRawX).toInt()
                         val dy = (event.rawY - downRawY).toInt()
-                        if (kotlin.math.abs(dx) > dp(6) || kotlin.math.abs(dy) > dp(6)) moved = true
-                        if (moved) {
-                            params.gravity = Gravity.TOP or Gravity.START
-                            val maxX = (resources.displayMetrics.widthPixels - (pill?.width ?: dp(prefs.getInt("pill_width", 210)))).coerceAtLeast(0)
-                            params.x = (startX + dx).coerceIn(0, maxX)
-                            params.y = (startY + dy).coerceAtLeast(dp(4))
-                            runCatching { wm.updateViewLayout(touchedView, params) }
+                        if (touchStartedExpanded) {
+                            if (kotlin.math.abs(dx) > dp(38) && kotlin.math.abs(dx) > kotlin.math.abs(dy) * 1.2f) {
+                                horizontalGesture = true
+                                moved = true
+                            } else if (dy > dp(42) && dy > kotlin.math.abs(dx) * 1.2f) {
+                                verticalDismissGesture = true
+                                moved = true
+                            } else if (kotlin.math.abs(dx) > dp(8) || kotlin.math.abs(dy) > dp(8)) {
+                                moved = true
+                            }
+                        } else {
+                            if (kotlin.math.abs(dx) > dp(6) || kotlin.math.abs(dy) > dp(6)) moved = true
+                            if (moved) {
+                                params.gravity = Gravity.TOP or Gravity.START
+                                val maxX = (resources.displayMetrics.widthPixels - (pill?.width ?: dp(prefs.getInt("pill_width", 210)))).coerceAtLeast(0)
+                                params.x = (startX + dx).coerceIn(0, maxX)
+                                params.y = (startY + dy).coerceAtLeast(dp(4))
+                                runCatching { wm.updateViewLayout(touchedView, params) }
+                            }
                         }
                         true
                     }
                     MotionEvent.ACTION_UP -> {
-                        if (moved) {
+                        val dx = (event.rawX - downRawX).toInt()
+                        if (horizontalGesture) {
+                            panelPage = (panelPage + if (dx < 0) 1 else 2) % 3
+                            render()
+                        } else if (verticalDismissGesture) {
+                            expanded = false
+                            animateToggle()
+                            render()
+                        } else if (moved && !touchStartedExpanded) {
                             prefs.edit()
                                 .putBoolean("custom_position", true)
                                 .putInt("position_x", params.x)
@@ -294,6 +327,8 @@ class IslandService : Service() {
                                 .apply()
                         }
                         touchedView.performClick()
+                        horizontalGesture = false
+                        verticalDismissGesture = false
                         true
                     }
                     else -> false
@@ -347,7 +382,7 @@ class IslandService : Service() {
                 "Timer · " + timerRemaining()
             IslandState.timerFinishedUntilMillis > System.currentTimeMillis() -> "Timer finished"
             prefs.getBoolean("show_low_battery", true) && !IslandState.charging &&
-                IslandState.batteryPercent in 0..15 -> "⚠ Low battery · ${IslandState.batteryPercent}%"
+                IslandState.batteryPercent in 0..prefs.getInt("low_battery_threshold", 15).coerceIn(5, 30) -> "⚠ Low battery · ${IslandState.batteryPercent}%"
             prefs.getBoolean("show_battery", true) && IslandState.charging ->
                 "⚡ Charging · " + if (IslandState.batteryPercent >= 0) "${IslandState.batteryPercent}%" else ""
             prefs.getBoolean("show_progress", true) && IslandState.downloadProgress >= 0 ->
@@ -514,7 +549,7 @@ class IslandService : Service() {
             val footerText = when {
                 IslandState.batteryPercent < 0 -> null
                 IslandState.charging -> "⚡  Charging · ${IslandState.batteryPercent}%"
-                prefs.getBoolean("show_low_battery", true) && IslandState.batteryPercent <= 15 -> "Battery low · ${IslandState.batteryPercent}%"
+                prefs.getBoolean("show_low_battery", true) && IslandState.batteryPercent <= prefs.getInt("low_battery_threshold", 15).coerceIn(5, 30) -> "Battery low · ${IslandState.batteryPercent}%"
                 else -> "Battery · ${IslandState.batteryPercent}%"
             }
             if (footerText != null) {
@@ -789,6 +824,36 @@ class IslandService : Service() {
                 setPadding(0, dp(11), 0, dp(4))
             })
         }
+
+        parent.addView(actionButton("Custom duration  ·  Pro", prominent = false) {
+            if (!prefs.getBoolean("pro_entitled", false)) {
+                startActivity(Intent(this, ProActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            } else {
+                val input = EditText(this).apply {
+                    inputType = android.text.InputType.TYPE_CLASS_NUMBER
+                    hint = "Minutes (1–720)"
+                    setText("30")
+                    setSelection(text.length)
+                }
+                AlertDialog.Builder(this)
+                    .setTitle("Custom countdown")
+                    .setMessage("Choose a duration between 1 minute and 12 hours.")
+                    .setView(input)
+                    .setNegativeButton("Cancel", null)
+                    .setPositiveButton("Start timer") { _, _ ->
+                        val minutes = input.text.toString().toIntOrNull()
+                        if (minutes == null || minutes !in 1..720) {
+                            Toast.makeText(this, "Enter a number from 1 to 720.", Toast.LENGTH_SHORT).show()
+                        } else {
+                            IslandState.timerEndMillis = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(minutes.toLong())
+                            IslandState.timerFinishedUntilMillis = 0L
+                            IslandState.changed()
+                            render()
+                        }
+                    }
+                    .show()
+            }
+        }, LinearLayout.LayoutParams(-1, dp(40)).apply { topMargin = dp(9) })
     }
 
     private fun actionButton(
