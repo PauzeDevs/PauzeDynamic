@@ -42,10 +42,13 @@ PauzeX Dynamic Island brings a compact, expandable live-activity pill to Android
 | **App notification filters** | Choose which observed apps can appear in the island |
 | **Progress** | Show determinate progress values supplied by notifications |
 | **Battery** | Show battery percentage and charging state |
-| **Quick timers** | Start one-, five-, ten- or twenty-five-minute countdowns; cancel active timers |
+| **Quick timers** | Start one-, five-, ten- or twenty-five-minute countdowns; Pro adds custom durations up to 12 hours |
 | **Position controls** | Drag to reposition, persist placement, and reset to top-center |
+| **Swipe navigation** | Swipe horizontally across the expanded island to change views; swipe down to collapse |
 | **Appearance** | Set accent colour, compact pill width and visible modules |
-| **PauzeX Pro** | Google Play Billing flow for weekly/yearly subscriptions and lifetime unlock; premium accent palette and optional live-indicator pulse |
+| **Pro themes** | Four exclusive dark island surfaces, premium accent palette, and optional live-indicator pulse |
+| **Smart battery alert** | Pro can customise the low-battery threshold from 5% to 30% |
+| **PauzeX Pro** | Google Play Billing for weekly/yearly subscriptions and a lifetime unlock |
 
 <div align="center">
 
@@ -103,7 +106,7 @@ The checkout flow queries these product IDs. They must be created and activated 
 
 Upload a properly signed app to an internal test track and use Play-licensed tester accounts to validate purchase, restore and cancellation flows. Product IDs cannot be made active by source code alone. The current build's Pro entitlement is checked client-side from Google Play purchase results; before public paid distribution, add server-side purchase-token verification and lifecycle handling. A local debug APK by itself cannot provide a production-secure payment entitlement.
 
-The Pro-only palette has four additional accent colours. The optional live-indicator pulse runs while playback is active when Pro is enabled. A valid purchase is required to unlock these features; the UI does not simulate or grant a successful payment when Play products are missing.
+Pro unlocks four premium accent colours, four island surface themes, an optional playback pulse, swipe navigation, custom countdown durations from 1 minute to 12 hours, and a custom low-battery threshold from 5% to 30%. A valid Google Play purchase is required for Pro features; the UI does not simulate or grant a successful payment when Play products are missing.
 
 ## ⚙️ First-time setup
 
@@ -134,13 +137,15 @@ Some manufacturers apply additional background-service restrictions. If the pill
 - [x] Album-art presentation and richer media controls where supported
 - [x] Notification action buttons, supported text replies and per-app filters
 - [x] Multiple quick timer presets and position reset
+- [x] Swipe navigation between Music, Alerts and Tools views
+- [x] Pro theme selection, custom timers and battery alert threshold
 - [ ] Call-state indicators and device-specific permission handling
 - [ ] Physical-device testing and stability pass
 - [ ] Signed release build after validation
 
 ## ⚠️ Known limitations
 
-- This is a prototype, **not a stable or device-certified release**.
+- This is a prototype, **not a stable or device-certified release**. The overlay is an Android app-layer implementation inspired by Dynamic Island interaction patterns; it is not an iOS system component and cannot reproduce iOS-only system integrations.
 - Media metadata, seeking, previous/next controls and notification actions depend on what each other app exposes through Android. Some players don't publish every control.
 - Notification app filters list packages only after their notifications have been observed. Apps can change their notification action layout without notice.
 - This uses Android notification `RemoteInput` only for notifications that expose an inline-reply action; it cannot create reply support for apps that do not provide one.
