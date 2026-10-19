@@ -45,7 +45,6 @@ class IslandService : Service() {
     private var seekBarView: SeekBar? = null
     private var seekTimeView: TextView? = null
     private val prefs get() = getSharedPreferences(PREFS, MODE_PRIVATE)
-    private val notificationPrefs get() = prefs
 
     private val batteryReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -325,6 +324,8 @@ class IslandService : Service() {
             IslandState.timerEndMillis > System.currentTimeMillis() ->
                 "Timer · " + timerRemaining()
             IslandState.timerFinishedUntilMillis > System.currentTimeMillis() -> "Timer finished"
+            prefs.getBoolean("show_low_battery", true) && !IslandState.charging &&
+                IslandState.batteryPercent in 0..15 -> "⚠ Low battery · ${IslandState.batteryPercent}%"
             prefs.getBoolean("show_battery", true) && IslandState.charging ->
                 "⚡ Charging · " + if (IslandState.batteryPercent >= 0) "${IslandState.batteryPercent}%" else ""
             prefs.getBoolean("show_progress", true) && IslandState.downloadProgress >= 0 ->
@@ -409,7 +410,11 @@ class IslandService : Service() {
 
             if (prefs.getBoolean("show_battery", true) && IslandState.batteryPercent >= 0) {
                 view.addView(label(
-                    (if (IslandState.charging) "⚡ Charging" else "Battery") + " · ${IslandState.batteryPercent}%",
+                    when {
+                        IslandState.charging -> "⚡ Charging"
+                        prefs.getBoolean("show_low_battery", true) && IslandState.batteryPercent in 0..15 -> "⚠ Low battery"
+                        else -> "Battery"
+                    } + " · ${IslandState.batteryPercent}%",
                     11f,
                     Color.LTGRAY
                 ).apply { setPadding(0, dp(5), 0, dp(5)) })
