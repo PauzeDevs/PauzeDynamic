@@ -321,6 +321,7 @@ class ProActivity : Activity() {
     }
 
     private fun setupBilling() {
+        try {
         billingClient = BillingClient.newBuilder(applicationContext)
             .setListener { result, purchases ->
                 when (result.responseCode) {
@@ -356,6 +357,12 @@ class ProActivity : Activity() {
                 }
             }
         })
+        } catch (error: Exception) {
+            connected = false
+            statusLabel.text = "Google Play billing couldn't start: " +
+                (error.message?.takeIf { it.isNotBlank() } ?: error.javaClass.simpleName)
+            android.util.Log.e("PauzeXPro", "Unable to initialise Google Play Billing", error)
+        }
     }
 
     private fun queryProductCatalog() {
@@ -467,11 +474,17 @@ class ProActivity : Activity() {
         val flow = BillingFlowParams.newBuilder()
             .setProductDetailsParamsList(listOf(paramsBuilder.build()))
             .build()
-        val result = billingClient.launchBillingFlow(this, flow)
-        if (result.responseCode != BillingClient.BillingResponseCode.OK) {
-            statusLabel.text = "Purchase could not start: ${result.debugMessage.ifBlank { "Google Play error" }}"
-        } else {
-            statusLabel.text = "Complete the purchase in Google Play."
+        try {
+            val result = billingClient.launchBillingFlow(this, flow)
+            if (result.responseCode != BillingClient.BillingResponseCode.OK) {
+                statusLabel.text = "Purchase could not start: ${result.debugMessage.ifBlank { "Google Play error" }}"
+            } else {
+                statusLabel.text = "Complete the purchase in Google Play."
+            }
+        } catch (error: Exception) {
+            statusLabel.text = "Google Play couldn't open checkout: " +
+                (error.message?.takeIf { it.isNotBlank() } ?: error.javaClass.simpleName)
+            android.util.Log.e("PauzeXPro", "Unable to launch checkout", error)
         }
     }
 
