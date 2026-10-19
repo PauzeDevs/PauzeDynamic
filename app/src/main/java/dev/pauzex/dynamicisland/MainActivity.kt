@@ -194,6 +194,7 @@ class MainActivity : Activity() {
         root.addView(toggle("Media activity and playback", "show_media"))
         root.addView(toggle("Notification previews and actions", "show_notifications"))
         root.addView(toggle("Battery and charging status", "show_battery"))
+        root.addView(toggle("Low-battery warning (15% or less)", "show_low_battery"))
         root.addView(toggle("Notification progress bars", "show_progress"))
 
         root.addView(section("Accent colour"))
