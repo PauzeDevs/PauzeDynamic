@@ -17,7 +17,15 @@ class IslandNotificationListener : NotificationListenerService() {
             (progress * 100f / max).toInt().coerceIn(0, 100) else -1
         IslandState.changed()
     }
+
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
-        IslandState.latestNotification = ""; IslandState.downloadProgress = -1; IslandState.changed()
+        // Don't clear a newer notification when an older notification disappears.
+        val extras = sbn.notification.extras ?: return
+        val removedTitle = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty()
+        if (removedTitle == IslandState.latestNotification) {
+            IslandState.latestNotification = ""
+            IslandState.downloadProgress = -1
+            IslandState.changed()
+        }
     }
 }
