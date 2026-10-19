@@ -5,7 +5,7 @@
 <img src="https://readme-typing-svg.demolab.com?font=JetBrains+Mono&weight=600&size=22&duration=2800&pause=900&color=8B9CFF&center=true&vCenter=true&width=650&lines=Your+Android.+More+alive.;Live+activities+in+a+floating+pill.;Built+by+PauzeX+Developments." alt="Animated introduction" />
 
 <p><strong>A Dynamic Island-inspired overlay for Android.</strong><br />
-Media • Notifications • Battery • Progress • Customisation</p>
+Media controls • Interactive notifications • Timers • Battery • Customisation</p>
 
 <p>
   <a href="https://github.com/PauzeDevs/PauzeDynamic/actions/workflows/android.yml"><img src="https://github.com/PauzeDevs/PauzeDynamic/actions/workflows/android.yml/badge.svg" alt="Android CI" /></a>
@@ -36,12 +36,15 @@ PauzeX Dynamic Island brings a compact, expandable live-activity pill to Android
 | **Motion** | Expand/collapse feedback animation |
 | **Move it** | Drag the overlay to reposition it |
 | **Appearance** | Choose an accent colour and adjust compact pill width |
-| **Media** | Display available track metadata and send play/pause commands |
-| **Notifications** | Preview the latest supported notification |
-| **Progress** | Show progress when a notification provides determinate progress values |
+| **Media session switching** | Watches Android active media sessions and prefers a currently playing session |
+| **Music controls** | Track metadata, album art, play/pause, supported previous/next actions and seeking when the player exposes them |
+| **Interactive notifications** | Expanded notification title and body, open action, up to three notification actions, and text replies when a notification exposes a `RemoteInput` action |
+| **App notification filters** | Choose which observed apps can appear in the island |
+| **Progress** | Show determinate progress values supplied by notifications |
 | **Battery** | Show battery percentage and charging state |
-| **Quick timer** | Start or cancel a one-minute timer |
-| **Module toggles** | Enable or disable media, notification, battery and progress indicators |
+| **Quick timers** | Start one-, five-, ten- or twenty-five-minute countdowns; cancel active timers |
+| **Position controls** | Drag to reposition, persist placement, and reset to top-center |
+| **Appearance** | Set accent colour, compact pill width and visible modules |
 
 <div align="center">
 
@@ -55,7 +58,7 @@ PauzeX Dynamic Island brings a compact, expandable live-activity pill to Android
 ### Option 1 — Download a CI build
 
 1. Open **[GitHub Actions](https://github.com/PauzeDevs/PauzeDynamic/actions)**.
-2. Select the latest successful **Android CI** run on `main`.
+2. Select the latest successful **Android CI** run on the repository's default branch (`PauzeDynamic`).
 3. Scroll to **Artifacts** and download `PauzeX-Dynamic-Island-debug`.
 4. Extract the ZIP and install `app-debug.apk` on your Android device.
 
@@ -84,7 +87,7 @@ app/build/outputs/apk/debug/app-debug.apk
 3. Enable **Notification access** if you want notification previews and media-session discovery.
 4. Return to the app and tap **Start Dynamic Island**.
 5. Tap the pill to expand it. Drag the pill to reposition it.
-6. Open the Appearance and Live Activity Modules settings to adjust the width, accent colour and visible modules.
+6. Open the Appearance and Live Activity Modules settings to adjust the width, accent colour and visible modules. After notifications from apps have been observed, use **Choose notification apps** to filter which apps can appear.
 
 Some manufacturers apply additional background-service restrictions. If the pill disappears, check the app's battery/background settings and start it again.
 
@@ -102,8 +105,10 @@ Some manufacturers apply additional background-service restrictions. If the pill
 - [x] Width and accent-colour customisation
 - [x] Toggles for available activity modules
 - [x] CI workflow for debug APK artifacts
-- [ ] More robust live media-session switching
-- [ ] Album-art presentation and richer media layouts
+- [x] Active media-session monitoring and player switching
+- [x] Album-art presentation and richer media controls where supported
+- [x] Notification action buttons, supported text replies and per-app filters
+- [x] Multiple quick timer presets and position reset
 - [ ] Call-state indicators and device-specific permission handling
 - [ ] Physical-device testing and stability pass
 - [ ] Signed release build after validation
@@ -111,9 +116,11 @@ Some manufacturers apply additional background-service restrictions. If the pill
 ## ⚠️ Known limitations
 
 - This is a prototype, **not a stable or device-certified release**.
-- Media-session discovery currently happens when the service starts; switching players may require restarting the overlay.
-- Media metadata, notification content and progress indicators depend on what other apps expose to Android.
-- Call-state indicators are not implemented.
+- Media metadata, seeking, previous/next controls and notification actions depend on what each other app exposes through Android. Some players don't publish every control.
+- Notification app filters list packages only after their notifications have been observed. Apps can change their notification action layout without notice.
+- This uses Android notification `RemoteInput` only for notifications that expose an inline-reply action; it cannot create reply support for apps that do not provide one.
+- Timer presets are timers inside PauzeX Dynamic Island; they do not mirror or control timers from third-party Clock apps.
+- Dedicated maps/live-navigation cards, call-state indicators, audible low-battery alarms, and an audio visualizer are not implemented yet. Low battery is shown as an in-island warning only.
 - Battery optimisation and background-service rules differ by Android version and manufacturer.
 - The CI workflow confirms that the project compiles; it does not replace real-device testing.
 
