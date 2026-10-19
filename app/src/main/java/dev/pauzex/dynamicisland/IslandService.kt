@@ -143,20 +143,31 @@ class IslandService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Notification access may have been granted after the service was first started.
+        if (sessionManager == null) attachMedia() else reloadMediaSessions()
         if (intent?.action == ACTION_START && pill == null && Settings.canDrawOverlays(this)) attachOverlay()
         return START_STICKY
     }
 
     private fun attachMedia() {
-        runCatching {
-            val manager = getSystemService(MEDIA_SESSION_SERVICE) as MediaSessionManager
-            sessionManager = manager
+        if (sessionManager != null) {
+            reloadMediaSessions()
+            return
+        }
+        val manager = getSystemService(MEDIA_SESSION_SERVICE) as MediaSessionManager
+        try {
             manager.addOnActiveSessionsChangedListener(
                 sessionsListener,
                 ComponentName(this, IslandNotificationListener::class.java),
                 handler
             )
+            sessionManager = manager
             reloadMediaSessions()
+        } catch (error: Exception) {
+            // Do not mark registration successful when notification access is missing.
+            runCatching { manager.removeOnActiveSessionsChangedListener(sessionsListener) }
+            sessionManager = null
+            android.util.Log.w("PauzeXIsland", "Media-session access is not ready; it will be retried.", error)
         }
     }
 

@@ -26,10 +26,17 @@ class IslandNotificationListener : NotificationListenerService() {
             return
         }
 
-        val extras = notification.extras ?: return
+        val extras = notification.extras ?: run {
+            removeSnapshot(sbn.key)
+            return
+        }
         val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty().trim()
         val body = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString().orEmpty().trim()
-        if (title.isBlank() && body.isBlank()) return
+        if (title.isBlank() && body.isBlank()) {
+            // Notification updates can remove their visible text; don't keep an older preview.
+            removeSnapshot(sbn.key)
+            return
+        }
 
         val appLabel = runCatching {
             val info = packageManager.getApplicationInfo(sbn.packageName, 0)
@@ -76,7 +83,9 @@ class IslandNotificationListener : NotificationListenerService() {
     }
 
     private fun publishNewestPreview() {
-        val newest = IslandState.notificationPreviews.firstOrNull()
+        val blocked = getSharedPreferences(IslandService.PREFS, MODE_PRIVATE)
+            .getStringSet("blocked_notification_apps", emptySet()) ?: emptySet()
+        val newest = IslandState.notificationPreviews.firstOrNull { it.packageName !in blocked }
         IslandState.notificationPreview = newest
         val extras = newest?.let { snapshot ->
             activeNotifications?.firstOrNull { it.key == snapshot.key }?.notification?.extras
