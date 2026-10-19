@@ -61,14 +61,6 @@ class IslandNotificationListener : NotificationListenerService() {
         }
         publishNewestPreview()
 
-        val max = extras.getInt(Notification.EXTRA_PROGRESS_MAX, 0)
-        val progress = extras.getInt(Notification.EXTRA_PROGRESS, 0)
-        IslandState.downloadProgress =
-            if (max > 0 && !extras.getBoolean(Notification.EXTRA_PROGRESS_INDETERMINATE)) {
-                (progress * 100f / max).toInt().coerceIn(0, 100)
-            } else {
-                -1
-            }
         IslandState.changed()
     }
 
@@ -84,8 +76,17 @@ class IslandNotificationListener : NotificationListenerService() {
     }
 
     private fun publishNewestPreview() {
-        IslandState.notificationPreview = IslandState.notificationPreviews.firstOrNull()
-        IslandState.downloadProgress = -1
+        val newest = IslandState.notificationPreviews.firstOrNull()
+        IslandState.notificationPreview = newest
+        val extras = newest?.let { snapshot ->
+            activeNotifications?.firstOrNull { it.key == snapshot.key }?.notification?.extras
+        }
+        val max = extras?.getInt(Notification.EXTRA_PROGRESS_MAX, 0) ?: 0
+        val progress = extras?.getInt(Notification.EXTRA_PROGRESS, 0) ?: 0
+        IslandState.downloadProgress =
+            if (max > 0 && extras?.getBoolean(Notification.EXTRA_PROGRESS_INDETERMINATE) != true) {
+                (progress * 100f / max).toInt().coerceIn(0, 100)
+            } else -1
         IslandState.changed()
     }
 }
