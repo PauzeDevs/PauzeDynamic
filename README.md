@@ -11,7 +11,7 @@ Media • Notifications • Battery • Progress • Customisation</p>
   <a href="https://github.com/PauzeDevs/PauzeDynamic/actions/workflows/android.yml"><img src="https://github.com/PauzeDevs/PauzeDynamic/actions/workflows/android.yml/badge.svg" alt="Android CI" /></a>
   <a href="https://github.com/PauzeDevs/PauzeDynamic/stargazers"><img src="https://img.shields.io/github/stars/PauzeDevs/PauzeDynamic?style=flat&color=8B9CFF" alt="GitHub stars" /></a>
   <a href="https://github.com/PauzeDevs/PauzeDynamic/issues"><img src="https://img.shields.io/github/issues/PauzeDevs/PauzeDynamic?style=flat&color=70E1C1" alt="Open issues" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-70E1C1.svg?style=flat" alt="MIT License" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-70E1C1.svg?style=flat" alt="Apache License 2.0" /></a>
   <img src="https://img.shields.io/badge/platform-Android-3DDC84?style=flat&logo=android&logoColor=white" alt="Android" />
   <img src="https://img.shields.io/badge/language-Kotlin-7F52FF?style=flat&logo=kotlin&logoColor=white" alt="Kotlin" />
 </p>
