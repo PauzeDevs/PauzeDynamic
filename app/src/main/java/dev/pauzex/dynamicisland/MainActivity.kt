@@ -103,6 +103,12 @@ class MainActivity : Activity() {
             }
             .setPositiveButton("Save") { _, _ ->
                 prefs.edit().putStringSet("blocked_notification_apps", blocked.toSet()).apply()
+                val current = IslandState.notificationPreview
+                if (current != null && current.packageName in blocked) {
+                    IslandState.notificationPreview = null
+                    IslandState.downloadProgress = -1
+                    IslandState.changed()
+                }
                 refreshOverlay()
                 Toast.makeText(this, "Notification filters saved.", Toast.LENGTH_SHORT).show()
             }
