@@ -18,9 +18,10 @@ import android.content.res.ColorStateList
 
 class MainActivity : Activity() {
     private val prefs by lazy { getSharedPreferences(IslandService.PREFS, MODE_PRIVATE) }
-    private val bg = Color.rgb(8, 9, 14)
-    private val card = Color.rgb(17, 19, 28)
-    private val accent = Color.rgb(139, 156, 255)
+    private val bg = Color.rgb(5, 6, 8)
+    private val card = Color.rgb(17, 18, 22)
+    private val border = Color.rgb(43, 45, 51)
+    private val accent = Color.rgb(151, 166, 255)
     private var lastProEntitled: Boolean? = null
 
     private fun dp(n: Int) = (n * resources.displayMetrics.density).toInt()
@@ -30,26 +31,45 @@ class MainActivity : Activity() {
             text = value
             textSize = size
             setTextColor(color)
-            setPadding(0, dp(5), 0, dp(5))
+            setPadding(0, dp(4), 0, dp(4))
+            letterSpacing = if (size >= 28f) -0.025f else 0f
             if (bold) typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         }
 
     private fun button(value: String, click: () -> Unit) = TextView(this).apply {
+        val primary = value.startsWith("Start Dynamic Island")
+        val subtle = value.startsWith("Stop Dynamic Island")
         text = value
-        textSize = 14f
-        setTextColor(Color.WHITE)
+        textSize = 14.5f
+        typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+        letterSpacing = -0.005f
+        setTextColor(if (primary) Color.rgb(10, 11, 14) else Color.rgb(239, 240, 244))
         gravity = Gravity.CENTER
-        setPadding(dp(14), dp(14), dp(14), dp(14))
-        background = GradientDrawable().apply {
-            cornerRadius = dp(14).toFloat()
-            setColor(card)
-            setStroke(dp(1), Color.rgb(48, 51, 65))
+        minHeight = dp(52)
+        setPadding(dp(16), dp(13), dp(16), dp(13))
+        val fill = when {
+            primary -> Color.rgb(242, 243, 247)
+            subtle -> Color.rgb(13, 14, 17)
+            else -> card
         }
+        val shape = GradientDrawable().apply {
+            cornerRadius = dp(17).toFloat()
+            setColor(fill)
+            setStroke(dp(1), if (primary) fill else border)
+        }
+        background = android.graphics.drawable.RippleDrawable(
+            ColorStateList.valueOf(Color.rgb(75, 78, 90)), shape, null
+        )
+        isClickable = true
+        isFocusable = true
         setOnClickListener { click() }
     }
 
     private fun section(title: String): TextView =
-        text(title.uppercase(), 11f, accent, true).apply { setPadding(0, dp(20), 0, dp(8)) }
+        text(title, 16f, Color.rgb(241, 242, 246), true).apply {
+            setPadding(0, dp(25), 0, dp(9))
+            letterSpacing = -0.015f
+        }
 
     private fun toggle(title: String, key: String, default: Boolean = true) = CheckBox(this).apply {
         text = title
@@ -135,23 +155,44 @@ class MainActivity : Activity() {
             setBackgroundColor(bg)
         }
         SystemBarInsets.apply(root)
-        root.addView(text("PAUZEX  /  ANDROID", 11f, accent, true))
-        root.addView(text("Dynamic Island", 32f, Color.WHITE, true))
-        root.addView(text("A live-activity overlay with actionable notifications, media controls and customisation.", 14f, Color.LTGRAY))
+        root.addView(text("PAUZEX  /  ANDROID", 10.5f, accent, true).apply {
+            letterSpacing = 0.08f
+            setPadding(0, dp(1), 0, dp(9))
+        })
+        root.addView(text("Dynamic Island", 36f, Color.WHITE, true).apply {
+            letterSpacing = -0.035f
+            setPadding(0, 0, 0, dp(5))
+        })
+        root.addView(text(
+            "Live activities, media controls and notifications — together in one compact overlay.",
+            15f, Color.rgb(169, 171, 179)
+        ).apply {
+            setLineSpacing(dp(2).toFloat(), 1f)
+            setPadding(0, 0, 0, dp(5))
+        })
 
         val preview = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(dp(20), dp(18), dp(20), dp(18))
+            setPadding(dp(20), dp(21), dp(20), dp(21))
             background = GradientDrawable().apply {
-                cornerRadius = dp(25).toFloat()
-                setColor(Color.rgb(3, 4, 8))
-                setStroke(dp(1), Color.rgb(70, 75, 105))
+                cornerRadius = dp(24).toFloat()
+                setColor(Color.BLACK)
+                setStroke(dp(1), border)
             }
         }
-        preview.addView(text("●  PAUZEX  ·  READY", 12f, Color.WHITE, true).apply { gravity = Gravity.CENTER })
-        preview.addView(text("Media · Notification actions · Timers · Battery", 11f, Color.LTGRAY).apply { gravity = Gravity.CENTER })
-        root.addView(preview, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(22); bottomMargin = dp(6) })
+        preview.addView(text("●  READY WHEN YOU ARE", 11f, Color.WHITE, true).apply {
+            gravity = Gravity.CENTER
+            letterSpacing = 0.035f
+        })
+        preview.addView(text("Music  ·  Alerts  ·  Timers  ·  Battery", 12f, Color.rgb(157, 160, 169)).apply {
+            gravity = Gravity.CENTER
+            setPadding(0, dp(6), 0, 0)
+        })
+        root.addView(preview, LinearLayout.LayoutParams(-1, -2).apply {
+            topMargin = dp(22)
+            bottomMargin = dp(4)
+        })
 
         root.addView(section("Permissions & controls"))
         root.addView(button("Allow display over other apps  ↗") {
@@ -430,7 +471,7 @@ class MainActivity : Activity() {
     }
 
     private fun marginParams() = LinearLayout.LayoutParams(-1, -2).apply {
-        topMargin = dp(5)
-        bottomMargin = dp(5)
+        topMargin = dp(4)
+        bottomMargin = dp(4)
     }
 }
