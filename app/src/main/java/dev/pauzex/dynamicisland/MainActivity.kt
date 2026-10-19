@@ -352,6 +352,19 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        // Resume an explicitly enabled island after the user returns from Android Settings.
+        if (prefs.getBoolean("island_running", false) && Settings.canDrawOverlays(this)) {
+            val intent = Intent(this, IslandService::class.java).setAction(IslandService.ACTION_START)
+            runCatching {
+                if (Build.VERSION.SDK_INT >= 26) startForegroundService(intent) else startService(intent)
+            }.onFailure {
+                Toast.makeText(this, "Couldn't start the island. Tap Start Dynamic Island to retry.", Toast.LENGTH_LONG).show()
+            }
+        }
+        prefs.getString("overlay_error", null)?.let {
+            Toast.makeText(this, "Island overlay failed ($it). Check overlay permission and retry.", Toast.LENGTH_LONG).show()
+            prefs.edit().remove("overlay_error").apply()
+        }
         val nowProEntitled = prefs.getBoolean("pro_entitled", false)
         if (lastProEntitled != null && lastProEntitled != nowProEntitled) {
             refreshOverlay()
