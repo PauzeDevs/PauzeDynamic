@@ -14,6 +14,7 @@ import android.os.*
 import android.provider.Settings
 import android.view.*
 import android.view.animation.DecelerateInterpolator
+import android.view.animation.OvershootInterpolator
 import android.widget.*
 import android.animation.ValueAnimator
 import java.util.concurrent.TimeUnit
@@ -31,6 +32,8 @@ class IslandService : Service() {
     private var expanded = false
     private var panelPage = 0
     private var animator: ValueAnimator? = null
+    private var pendingMorphAnimation = false
+    private var pendingContentTransition = false
     private val handler = Handler(Looper.getMainLooper())
     private var sessionManager: MediaSessionManager? = null
     private var controller: MediaController? = null
@@ -240,7 +243,7 @@ class IslandService : Service() {
         }
     }
 
-    private fun pillBackground(): GradientDrawable {
+    private fun pillBackground(cornerRadiusDp: Float = if (expanded) 26f else 22f): GradientDrawable {
         val savedTheme = prefs.getString("pill_theme", "classic") ?: "classic"
         val theme = if (prefs.getBoolean("pro_entitled", false)) savedTheme else "classic"
         val colors = when (theme) {
@@ -252,7 +255,7 @@ class IslandService : Service() {
         }
         return GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, colors).apply {
             shape = GradientDrawable.RECTANGLE
-            cornerRadius = dp(if (expanded) 29 else 32).toFloat()
+            cornerRadius = cornerRadiusDp * resources.displayMetrics.density
             setStroke(dp(1), Color.rgb(43, 45, 52))
         }
     }
@@ -319,6 +322,7 @@ class IslandService : Service() {
                         val dx = (event.rawX - downRawX).toInt()
                         if (horizontalGesture) {
                             panelPage = (panelPage + if (dx < 0) 1 else 2) % 3
+                            pendingContentTransition = true
                             render()
                         } else if (verticalDismissGesture) {
                             expanded = false
@@ -366,15 +370,30 @@ class IslandService : Service() {
         render()
     }
 
+    /**
+     * Marks the next render as a size morph. The WindowManager bounds, padding and corner
+     * radius are interpolated together so the pill grows into its panel instead of snapping.
+     */
     private fun animateToggle() {
-        val view = pill ?: return
         animator?.cancel()
-        view.animate().cancel()
-        view.scaleX = 0.94f
-        view.scaleY = 0.94f
-        view.alpha = 0.86f
-        view.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(230)
-            .setInterpolator(DecelerateInterpolator()).start()
+        pill?.animate()?.cancel()
+        pendingMorphAnimation = true
+    }
+
+    private fun animateContentIn(container: ViewGroup) {
+        val children = (0 until container.childCount).map { container.getChildAt(it) }
+        children.forEachIndexed { index, child ->
+            child.animate().cancel()
+            child.alpha = 0f
+            child.translationY = dp(7).toFloat()
+            child.animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setStartDelay(index * 18L)
+                .setDuration(230L)
+                .setInterpolator(DecelerateInterpolator(1.6f))
+                .start()
+        }
     }
 
     private fun label(value: String, size: Float, color: Int = Color.WHITE) = TextView(this).apply {
@@ -439,6 +458,14 @@ class IslandService : Service() {
 
     private fun render() {
         val view = pill ?: return
+        val shouldMorph = pendingMorphAnimation
+        val shouldTransitionContent = pendingContentTransition
+        pendingMorphAnimation = false
+        pendingContentTransition = false
+        val previousWidth = if (view.width > 0) view.width else overlayParams?.width ?: dp(210)
+        val previousHeight = view.height
+        val startHorizontalPadding = dp(if (expanded) 14 else 14)
+        val startVerticalPadding = dp(if (expanded) 9 else 9)
         view.removeAllViews()
         headlineTextView = null
         timerLabelView = null
@@ -447,11 +474,14 @@ class IslandService : Service() {
         liveDotView = null
         view.orientation = LinearLayout.VERTICAL
         view.gravity = Gravity.CENTER_VERTICAL
+        val targetHorizontalPadding = dp(if (expanded) 18 else 14)
+        val targetVerticalTopPadding = dp(if (expanded) 15 else 9)
+        val targetVerticalBottomPadding = dp(if (expanded) 14 else 9)
         view.setPadding(
-            dp(if (expanded) 18 else 14),
-            dp(if (expanded) 15 else 9),
-            dp(if (expanded) 18 else 14),
-            dp(if (expanded) 14 else 9)
+            targetHorizontalPadding,
+            targetVerticalTopPadding,
+            targetHorizontalPadding,
+            targetVerticalBottomPadding
         )
         view.background = pillBackground()
 
@@ -610,9 +640,74 @@ class IslandService : Service() {
         val params = overlayParams
         if (params != null) {
             val screenWidthDp = (resources.displayMetrics.widthPixels / resources.displayMetrics.density).toInt()
-            params.width = dp(if (expanded) minOf(360, screenWidthDp - 32).coerceAtLeast(280) else prefs.getInt("pill_width", 210))
-            params.height = WindowManager.LayoutParams.WRAP_CONTENT
-            runCatching { wm.updateViewLayout(view, params) }
+            // Keep the expanded panel inside the usable width even on compact phones.
+            val targetWidth = dp(
+                if (expanded) minOf(360, (screenWidthDp - 32).coerceAtLeast(240))
+                else prefs.getInt("pill_width", 210).coerceIn(170, 300)
+            )
+            val maxHeight = (resources.displayMetrics.heightPixels - dp(48)).coerceAtLeast(dp(180))
+            view.measure(
+                View.MeasureSpec.makeMeasureSpec(targetWidth, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(maxHeight, View.MeasureSpec.AT_MOST)
+            )
+            val targetHeight = view.measuredHeight.coerceAtLeast(dp(40))
+
+            if (shouldMorph && previousHeight > 0 && previousWidth > 0) {
+                // Start from the last laid-out bounds and morph both dimensions in sync.
+                view.setPadding(startHorizontalPadding, startVerticalPadding,
+                    startHorizontalPadding, startVerticalPadding)
+                params.width = previousWidth
+                params.height = previousHeight
+                runCatching { wm.updateViewLayout(view, params) }
+                view.scaleX = 0.985f
+                view.scaleY = 0.985f
+                animator?.cancel()
+                animator = ValueAnimator.ofFloat(0f, 1f).apply {
+                    duration = if (expanded) 430L else 330L
+                    interpolator = OvershootInterpolator(if (expanded) 0.55f else 0.28f)
+                    addUpdateListener { animation ->
+                        val t = animation.animatedValue as Float
+                        params.width = (previousWidth + (targetWidth - previousWidth) * t).toInt()
+                            .coerceAtLeast(dp(120))
+                        params.height = (previousHeight + (targetHeight - previousHeight) * t).toInt()
+                            .coerceAtLeast(dp(36))
+                        val horizontal = (startHorizontalPadding +
+                            (targetHorizontalPadding - startHorizontalPadding) * t).toInt()
+                        val top = (startVerticalPadding +
+                            (targetVerticalTopPadding - startVerticalPadding) * t).toInt()
+                        val bottom = (startVerticalPadding +
+                            (targetVerticalBottomPadding - startVerticalPadding) * t).toInt()
+                        view.setPadding(horizontal, top, horizontal, bottom)
+                        val corner = if (expanded) 22f + 4f * t else 26f - 4f * t
+                        view.background = pillBackground(corner)
+                        view.scaleX = 0.985f + 0.015f * t
+                        view.scaleY = 0.985f + 0.015f * t
+                        runCatching { wm.updateViewLayout(view, params) }
+                    }
+                    addListener(object : android.animation.AnimatorListenerAdapter() {
+                        override fun onAnimationEnd(animation: android.animation.Animator) {
+                            if (animator !== this@apply) return
+                            params.width = targetWidth
+                            params.height = WindowManager.LayoutParams.WRAP_CONTENT
+                            view.setPadding(targetHorizontalPadding, targetVerticalTopPadding,
+                                targetHorizontalPadding, targetVerticalBottomPadding)
+                            view.background = pillBackground()
+                            view.scaleX = 1f
+                            view.scaleY = 1f
+                            runCatching { wm.updateViewLayout(view, params) }
+                            animator = null
+                        }
+                    })
+                    start()
+                }
+            } else {
+                params.width = targetWidth
+                params.height = WindowManager.LayoutParams.WRAP_CONTENT
+                runCatching { wm.updateViewLayout(view, params) }
+            }
+        }
+        if (shouldMorph || shouldTransitionContent) {
+            view.post { if (pill === view) animateContentIn(view) }
         }
         updateDynamicLabels()
         updateProPulse()
