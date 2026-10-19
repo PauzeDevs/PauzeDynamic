@@ -173,6 +173,21 @@ class MainActivity : Activity() {
         root.addView(button(if (prefs.getBoolean("pro_entitled", false)) "Manage PauzeX Pro  ↗" else "Explore Pro plans  ↗") {
             startActivity(Intent(this, ProActivity::class.java))
         }, marginParams())
+        root.addView(button(
+            if (!prefs.getBoolean("pro_entitled", false)) "Unlock Pro for live pulse animation"
+            else if (prefs.getBoolean("pro_motion", true)) "Live indicator pulse · On"
+            else "Live indicator pulse · Off"
+        ) {
+            if (!prefs.getBoolean("pro_entitled", false)) {
+                startActivity(Intent(this, ProActivity::class.java))
+            } else {
+                val enabled = !prefs.getBoolean("pro_motion", true)
+                prefs.edit().putBoolean("pro_motion", enabled).apply()
+                refreshOverlay()
+                Toast.makeText(this, if (enabled) "Live pulse enabled." else "Live pulse disabled.", Toast.LENGTH_SHORT).show()
+                recreate()
+            }
+        }, marginParams())
 
         root.addView(section("Appearance"))
         val widthLabel = text("Compact pill width · ${prefs.getInt("pill_width", 210)} dp", 13f, Color.LTGRAY)
