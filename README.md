@@ -62,7 +62,11 @@ PauzeX Dynamic Island brings a compact, expandable live-activity pill to Android
 3. Scroll to **Artifacts** and download `PauzeX-Dynamic-Island-debug`.
 4. Extract the ZIP and install `app-debug.apk` on your Android device.
 
-> Debug builds are development builds. Only download artifacts from this repository, and remember that an APK may need permission to install apps from your chosen file manager or browser.
+> Debug builds are development builds and are not signed as a production release. Play Protect may warn about or block sideloaded apps that request notification access, even when that access supports an explicit notification-preview feature. Do not disable Play Protect to install this prototype. If Google identifies this app as harmful, stop the installation and use Google's Play Protect appeal process; a developer cannot clear that classification by changing the APK alone. For broader distribution, use a consistently signed release build and Google Play's review/distribution process.
+
+### Notification access and privacy
+
+Notification access is optional. If enabled, Android lets PauzeX read notification content and exposed action buttons so it can render them in the floating island. Notifications can contain sensitive information. The app offers a disclosure before opening Android's notification-access settings, lets you filter which apps appear, and does not declare the INTERNET permission. You can revoke notification access in Android Settings at any time.
 
 ### Option 2 — Build from source
 
