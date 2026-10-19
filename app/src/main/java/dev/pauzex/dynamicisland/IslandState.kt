@@ -27,6 +27,7 @@ object IslandState {
     @Volatile var timerFinishedUntilMillis = 0L
     @Volatile var downloadProgress = -1
     @Volatile var notificationPreview: NotificationSnapshot? = null
+    @Volatile var notificationPreviews: List<NotificationSnapshot> = emptyList()
     @Volatile var mediaPlaying = false
     @Volatile var albumArt: Bitmap? = null
     @Volatile var mediaDurationMillis = 0L

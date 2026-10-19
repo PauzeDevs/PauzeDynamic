@@ -7,8 +7,11 @@ import android.service.notification.StatusBarNotification
 class IslandNotificationListener : NotificationListenerService() {
     override fun onListenerConnected() {
         super.onListenerConnected()
-        // Seed the island from existing notifications after access is granted or the device reconnects.
-        activeNotifications?.sortedBy { it.postTime }?.forEach { onNotificationPosted(it) }
+        // Rebuild snapshots after access is granted or the listener reconnects.
+        IslandState.notificationPreviews = emptyList()
+        IslandState.notificationPreview = null
+        activeNotifications?.sortedByDescending { it.postTime }?.forEach { onNotificationPosted(it) }
+        publishNewestPreview()
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
@@ -19,11 +22,7 @@ class IslandNotificationListener : NotificationListenerService() {
         val blocked = prefs.getStringSet("blocked_notification_apps", emptySet()) ?: emptySet()
 
         if (sbn.packageName in blocked) {
-            if (IslandState.notificationPreview?.key == sbn.key) {
-                IslandState.notificationPreview = null
-                IslandState.downloadProgress = -1
-                IslandState.changed()
-            }
+            removeSnapshot(sbn.key)
             return
         }
 
@@ -44,7 +43,7 @@ class IslandNotificationListener : NotificationListenerService() {
             .putString("notification_app_label_${sbn.packageName}", appLabel)
             .apply()
 
-        IslandState.notificationPreview = NotificationSnapshot(
+        val snapshot = NotificationSnapshot(
             key = sbn.key,
             packageName = sbn.packageName,
             appLabel = appLabel,
@@ -52,26 +51,42 @@ class IslandNotificationListener : NotificationListenerService() {
             body = body,
             contentIntent = notification.contentIntent,
             actions = notification.actions?.toList().orEmpty(),
-            receivedAtMillis = System.currentTimeMillis()
+            receivedAtMillis = sbn.postTime
         )
+        synchronized(this) {
+            IslandState.notificationPreviews =
+                (IslandState.notificationPreviews.filterNot { it.key == sbn.key } + snapshot)
+                    .sortedByDescending { it.receivedAtMillis }
+                    .take(50)
+        }
+        publishNewestPreview()
 
-        val max = extras.getInt(Notification.EXTRA_PROGRESS_MAX, 0)
-        val progress = extras.getInt(Notification.EXTRA_PROGRESS, 0)
-        IslandState.downloadProgress =
-            if (max > 0 && !extras.getBoolean(Notification.EXTRA_PROGRESS_INDETERMINATE)) {
-                (progress * 100f / max).toInt().coerceIn(0, 100)
-            } else {
-                -1
-            }
         IslandState.changed()
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
-        // Match by notification key so removal of an older notification cannot clear a newer one.
-        if (IslandState.notificationPreview?.key == sbn.key) {
-            IslandState.notificationPreview = null
-            IslandState.downloadProgress = -1
-            IslandState.changed()
+        removeSnapshot(sbn.key)
+    }
+
+    private fun removeSnapshot(key: String) {
+        synchronized(this) {
+            IslandState.notificationPreviews = IslandState.notificationPreviews.filterNot { it.key == key }
         }
+        publishNewestPreview()
+    }
+
+    private fun publishNewestPreview() {
+        val newest = IslandState.notificationPreviews.firstOrNull()
+        IslandState.notificationPreview = newest
+        val extras = newest?.let { snapshot ->
+            activeNotifications?.firstOrNull { it.key == snapshot.key }?.notification?.extras
+        }
+        val max = extras?.getInt(Notification.EXTRA_PROGRESS_MAX, 0) ?: 0
+        val progress = extras?.getInt(Notification.EXTRA_PROGRESS, 0) ?: 0
+        IslandState.downloadProgress =
+            if (max > 0 && extras?.getBoolean(Notification.EXTRA_PROGRESS_INDETERMINATE) != true) {
+                (progress * 100f / max).toInt().coerceIn(0, 100)
+            } else -1
+        IslandState.changed()
     }
 }

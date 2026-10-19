@@ -93,7 +93,9 @@ class CustomTimerActivity : Activity() {
                     input.error = "Enter 1–720 minutes"
                     return@setOnClickListener
                 }
-                IslandState.timerEndMillis = System.currentTimeMillis() + minutes * 60_000L
+                val deadline = System.currentTimeMillis() + minutes * 60_000L
+                prefs.edit().putLong("timer_end_millis", deadline).apply()
+                IslandState.timerEndMillis = deadline
                 IslandState.timerFinishedUntilMillis = 0L
                 IslandState.changed()
                 Toast.makeText(this@CustomTimerActivity, "Timer set for $minutes minutes.", Toast.LENGTH_SHORT).show()
