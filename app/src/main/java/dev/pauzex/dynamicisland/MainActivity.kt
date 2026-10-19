@@ -150,7 +150,20 @@ class MainActivity : Activity() {
             startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
         }, marginParams())
         root.addView(button("Enable notification access  ↗") {
-            startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+            AlertDialog.Builder(this)
+                .setTitle("Notification access")
+                .setMessage(
+                    "PauzeX Dynamic Island can read notification content only after you explicitly enable Android notification access. " +
+                    "It uses notification titles, text, app names and available action buttons to show previews in the floating island. " +
+                    "Notifications may contain sensitive information. Choose which apps are shown using the notification filters. " +
+                    "This app does not declare the INTERNET permission; notification processing is performed on this device. " +
+                    "You can revoke access at any time in Android Settings."
+                )
+                .setPositiveButton("Continue to Settings") { _, _ ->
+                    startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
         }, marginParams())
         root.addView(button("Start Dynamic Island") { startIsland() }, marginParams())
         root.addView(button("Stop Dynamic Island") {
