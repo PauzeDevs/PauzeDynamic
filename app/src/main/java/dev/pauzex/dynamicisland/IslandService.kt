@@ -464,8 +464,9 @@ class IslandService : Service() {
         pendingContentTransition = false
         val previousWidth = if (view.width > 0) view.width else overlayParams?.width ?: dp(210)
         val previousHeight = view.height
-        val startHorizontalPadding = dp(if (expanded) 14 else 14)
-        val startVerticalPadding = dp(if (expanded) 9 else 9)
+        val startHorizontalPadding = if (view.width > 0) view.paddingLeft else dp(14)
+        val startVerticalTopPadding = if (view.height > 0) view.paddingTop else dp(9)
+        val startVerticalBottomPadding = if (view.height > 0) view.paddingBottom else dp(9)
         view.removeAllViews()
         headlineTextView = null
         timerLabelView = null
@@ -654,8 +655,8 @@ class IslandService : Service() {
 
             if (shouldMorph && previousHeight > 0 && previousWidth > 0) {
                 // Start from the last laid-out bounds and morph both dimensions in sync.
-                view.setPadding(startHorizontalPadding, startVerticalPadding,
-                    startHorizontalPadding, startVerticalPadding)
+                view.setPadding(startHorizontalPadding, startVerticalTopPadding,
+                    startHorizontalPadding, startVerticalBottomPadding)
                 params.width = previousWidth
                 params.height = previousHeight
                 runCatching { wm.updateViewLayout(view, params) }
@@ -673,10 +674,10 @@ class IslandService : Service() {
                             .coerceAtLeast(dp(36))
                         val horizontal = (startHorizontalPadding +
                             (targetHorizontalPadding - startHorizontalPadding) * t).toInt()
-                        val top = (startVerticalPadding +
-                            (targetVerticalTopPadding - startVerticalPadding) * t).toInt()
-                        val bottom = (startVerticalPadding +
-                            (targetVerticalBottomPadding - startVerticalPadding) * t).toInt()
+                        val top = (startVerticalTopPadding +
+                            (targetVerticalTopPadding - startVerticalTopPadding) * t).toInt()
+                        val bottom = (startVerticalBottomPadding +
+                            (targetVerticalBottomPadding - startVerticalBottomPadding) * t).toInt()
                         view.setPadding(horizontal, top, horizontal, bottom)
                         val corner = if (expanded) 22f + 4f * t else 26f - 4f * t
                         view.background = pillBackground(corner)
@@ -700,7 +701,7 @@ class IslandService : Service() {
                     })
                     start()
                 }
-            } else {
+            } else if (animator?.isRunning != true) {
                 params.width = targetWidth
                 params.height = WindowManager.LayoutParams.WRAP_CONTENT
                 runCatching { wm.updateViewLayout(view, params) }
