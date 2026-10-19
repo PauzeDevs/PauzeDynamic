@@ -29,6 +29,7 @@ class IslandService : Service() {
     private lateinit var wm: WindowManager
     private var pill: LinearLayout? = null
     private var expanded = false
+    private var panelPage = 0
     private var animator: ValueAnimator? = null
     private val handler = Handler(Looper.getMainLooper())
     private var sessionManager: MediaSessionManager? = null
@@ -181,11 +182,20 @@ class IslandService : Service() {
         IslandState.changed()
     }
 
+    private fun mediaAppLabel(packageName: String?): String {
+        if (packageName.isNullOrBlank()) return "Media player"
+        return runCatching {
+            val info = packageManager.getApplicationInfo(packageName, 0)
+            packageManager.getApplicationLabel(info).toString()
+        }.getOrDefault("Media player")
+    }
+
     private fun applyMetadata(metadata: MediaMetadata?) {
+        val appLabel = mediaAppLabel(controller?.packageName)
         IslandState.title = metadata?.getString(MediaMetadata.METADATA_KEY_TITLE)
-            ?.takeIf { it.isNotBlank() } ?: "Now playing"
+            ?.takeIf { it.isNotBlank() } ?: "Audio session"
         IslandState.subtitle = metadata?.getString(MediaMetadata.METADATA_KEY_ARTIST)
-            ?.takeIf { it.isNotBlank() } ?: controller?.packageName.orEmpty().ifBlank { "Media" }
+            ?.takeIf { it.isNotBlank() } ?: appLabel
         IslandState.mediaPackage = controller?.packageName.orEmpty()
         IslandState.albumArt = metadata?.getBitmap(MediaMetadata.METADATA_KEY_ART)
             ?: metadata?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
@@ -213,11 +223,14 @@ class IslandService : Service() {
         Color.rgb(139, 156, 255)
     }
 
-    private fun pillBackground() = GradientDrawable().apply {
+    private fun pillBackground() = GradientDrawable(
+        GradientDrawable.Orientation.TOP_BOTTOM,
+        if (expanded) intArrayOf(Color.rgb(17, 18, 22), Color.rgb(5, 6, 8))
+        else intArrayOf(Color.rgb(8, 9, 12), Color.rgb(3, 4, 6))
+    ).apply {
         shape = GradientDrawable.RECTANGLE
-        cornerRadius = dp(if (expanded) 30 else 40).toFloat()
-        setColor(Color.rgb(9, 10, 15))
-        setStroke(dp(1), Color.argb(170, Color.red(accent()), Color.green(accent()), Color.blue(accent())))
+        cornerRadius = dp(if (expanded) 28 else 32).toFloat()
+        setStroke(dp(1), Color.rgb(43, 45, 52))
     }
 
     private fun attachOverlay() {
@@ -225,7 +238,7 @@ class IslandService : Service() {
         val view = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(dp(16), dp(9), dp(16), dp(9))
+            setPadding(dp(14), dp(9), dp(14), dp(9))
             background = pillBackground()
             elevation = dp(14).toFloat()
             clipToOutline = true
@@ -373,65 +386,148 @@ class IslandService : Service() {
         timerLabelView = null
         seekBarView = null
         seekTimeView = null
+        view.orientation = LinearLayout.VERTICAL
+        view.gravity = Gravity.CENTER_VERTICAL
+        view.setPadding(
+            dp(if (expanded) 18 else 14),
+            dp(if (expanded) 15 else 9),
+            dp(if (expanded) 18 else 14),
+            dp(if (expanded) 14 else 9)
+        )
         view.background = pillBackground()
 
-        val top = LinearLayout(this).apply {
-            gravity = Gravity.CENTER
-            orientation = LinearLayout.HORIZONTAL
-        }
-        top.addView(TextView(this).apply {
-            text = "●"
-            textSize = 8f
-            setTextColor(accent())
-            setPadding(0, 0, dp(7), 0)
-        })
-        headlineTextView = label(headline(), 12f)
-        top.addView(headlineTextView)
-        view.addView(top)
-
-        if (expanded) {
-            view.addView(View(this).apply { setBackgroundColor(Color.rgb(42, 44, 55)) },
-                LinearLayout.LayoutParams(-1, dp(1)).apply { topMargin = dp(9); bottomMargin = dp(9) })
-
-            val preview = if (prefs.getBoolean("show_notifications", true)) IslandState.notificationPreview else null
-            if (preview != null) renderNotification(view, preview)
-
-            renderMedia(view)
-
-            if (IslandState.downloadProgress >= 0 && prefs.getBoolean("show_progress", true)) {
-                val progress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
-                    max = 100
-                    this.progress = IslandState.downloadProgress
-                    progressTintList = android.content.res.ColorStateList.valueOf(accent())
+        if (!expanded) {
+            val compact = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER
+            }
+            compact.addView(TextView(this).apply {
+                text = "•"
+                textSize = 16f
+                setTextColor(if (IslandState.mediaPlaying) Color.rgb(116, 232, 194) else accent())
+                gravity = Gravity.CENTER
+                setPadding(0, 0, dp(7), 0)
+            })
+            headlineTextView = label(headline(), 11.5f).apply {
+                maxLines = 1
+                letterSpacing = 0.01f
+                setTextColor(Color.rgb(246, 246, 249))
+            }
+            compact.addView(headlineTextView, LinearLayout.LayoutParams(0, -2, 1f))
+            view.addView(compact)
+        } else {
+            val header = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+            }
+            header.addView(TextView(this).apply {
+                text = "•"
+                textSize = 13f
+                setTextColor(if (IslandState.mediaPlaying) Color.rgb(116, 232, 194) else accent())
+                gravity = Gravity.CENTER
+                setPadding(0, 0, dp(6), 0)
+            })
+            header.addView(label("LIVE ACTIVITY", 9.5f, Color.rgb(174, 177, 187)).apply {
+                letterSpacing = 0.12f
+            }, LinearLayout.LayoutParams(0, -2, 1f))
+            val collapse = TextView(this).apply {
+                text = "⌄"
+                textSize = 22f
+                gravity = Gravity.CENTER
+                setTextColor(Color.rgb(208, 210, 218))
+                background = roundBackground(Color.rgb(30, 32, 38), dp(14), Color.rgb(48, 50, 58))
+                setOnClickListener {
+                    expanded = false
+                    animateToggle()
+                    render()
                 }
-                view.addView(progress, LinearLayout.LayoutParams(-1, dp(4)).apply { topMargin = dp(8); bottomMargin = dp(5) })
-                view.addView(label("Progress · ${IslandState.downloadProgress}%", 10f, Color.LTGRAY))
+            }
+            header.addView(collapse, LinearLayout.LayoutParams(dp(30), dp(30)))
+            view.addView(header)
+
+            view.addView(View(this).apply { setBackgroundColor(Color.rgb(38, 40, 47)) },
+                LinearLayout.LayoutParams(-1, dp(1)).apply { topMargin = dp(10); bottomMargin = dp(10) })
+
+            val tabs = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+            }
+            listOf("Music", "Alerts", "Tools").forEachIndexed { index, title ->
+                val selected = panelPage == index
+                val tab = TextView(this).apply {
+                    text = title
+                    textSize = 11f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+                    gravity = Gravity.CENTER
+                    setTextColor(if (selected) Color.WHITE else Color.rgb(147, 150, 160))
+                    background = roundBackground(
+                        if (selected) Color.rgb(38, 40, 47) else Color.TRANSPARENT,
+                        dp(12),
+                        if (selected) Color.rgb(58, 60, 69) else Color.TRANSPARENT
+                    )
+                    setOnClickListener {
+                        if (panelPage != index) {
+                            panelPage = index
+                            render()
+                        }
+                    }
+                }
+                tabs.addView(tab, LinearLayout.LayoutParams(0, dp(32), 1f).apply {
+                    if (index > 0) leftMargin = dp(5)
+                })
+            }
+            view.addView(tabs, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(6) })
+
+            when (panelPage) {
+                0 -> renderMedia(view)
+                1 -> {
+                    val preview = if (prefs.getBoolean("show_notifications", true)) IslandState.notificationPreview else null
+                    if (preview != null) renderNotification(view, preview)
+                    else {
+                        view.addView(label("All quiet", 14f, Color.WHITE).apply {
+                            gravity = Gravity.CENTER
+                            setPadding(0, dp(20), 0, dp(4))
+                        })
+                        view.addView(label("New notifications will appear here.", 11f, Color.rgb(150, 153, 164)).apply {
+                            gravity = Gravity.CENTER
+                            setPadding(0, 0, 0, dp(16))
+                        })
+                    }
+                }
+                else -> renderTimers(view)
             }
 
-            if (prefs.getBoolean("show_battery", true) && IslandState.batteryPercent >= 0) {
-                view.addView(label(
-                    when {
-                        IslandState.charging -> "⚡ Charging"
-                        prefs.getBoolean("show_low_battery", true) && IslandState.batteryPercent in 0..15 -> "⚠ Low battery"
-                        else -> "Battery"
-                    } + " · ${IslandState.batteryPercent}%",
-                    11f,
-                    Color.LTGRAY
-                ).apply { setPadding(0, dp(5), 0, dp(5)) })
+            val footerText = when {
+                IslandState.batteryPercent < 0 -> null
+                IslandState.charging -> "⚡  Charging · ${IslandState.batteryPercent}%"
+                prefs.getBoolean("show_low_battery", true) && IslandState.batteryPercent <= 15 -> "Battery low · ${IslandState.batteryPercent}%"
+                else -> "Battery · ${IslandState.batteryPercent}%"
             }
-
-            renderTimers(view)
-            view.addView(label("Drag to reposition · Tap outside controls to collapse", 9f, Color.GRAY)
-                .apply { gravity = Gravity.CENTER; setPadding(0, dp(6), 0, 0) })
+            if (footerText != null) {
+                view.addView(View(this).apply { setBackgroundColor(Color.rgb(38, 40, 47)) },
+                    LinearLayout.LayoutParams(-1, dp(1)).apply { topMargin = dp(10); bottomMargin = dp(8) })
+                view.addView(label(footerText, 10f, Color.rgb(151, 154, 164)).apply {
+                    gravity = Gravity.CENTER
+                    letterSpacing = 0.015f
+                })
+            }
         }
 
         val params = overlayParams
         if (params != null) {
-            params.width = dp(if (expanded) 320 else prefs.getInt("pill_width", 210))
+            val screenWidthDp = (resources.displayMetrics.widthPixels / resources.displayMetrics.density).toInt()
+            params.width = dp(if (expanded) minOf(360, screenWidthDp - 32).coerceAtLeast(280) else prefs.getInt("pill_width", 210))
             params.height = WindowManager.LayoutParams.WRAP_CONTENT
             runCatching { wm.updateViewLayout(view, params) }
         }
         updateDynamicLabels()
+    }
+
+    private fun roundBackground(fill: Int, radius: Int, stroke: Int = Color.TRANSPARENT) = GradientDrawable().apply {
+        shape = GradientDrawable.RECTANGLE
+        cornerRadius = radius.toFloat()
+        setColor(fill)
+        if (stroke != Color.TRANSPARENT) setStroke(dp(1), stroke)
     }
 
     private fun renderNotification(parent: LinearLayout, preview: NotificationSnapshot) {
@@ -489,44 +585,90 @@ class IslandService : Service() {
     }
 
     private fun renderMedia(parent: LinearLayout) {
-        if (!prefs.getBoolean("show_media", true)) return
+        if (!prefs.getBoolean("show_media", true)) {
+            parent.addView(label("Media activity is turned off.", 12f, Color.rgb(145, 148, 158))
+                .apply { gravity = Gravity.CENTER; setPadding(0, dp(18), 0, dp(18)) })
+            return
+        }
+
         val hasMedia = controller != null && IslandState.title != "PauzeX"
         if (!hasMedia) {
-            parent.addView(label("No active media session", 10f, Color.GRAY)
-                .apply { gravity = Gravity.CENTER; setPadding(0, dp(3), 0, dp(5)) })
+            val empty = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                setPadding(0, dp(18), 0, dp(16))
+            }
+            empty.addView(TextView(this).apply {
+                text = "♫"
+                textSize = 27f
+                gravity = Gravity.CENTER
+                setTextColor(Color.rgb(222, 224, 232))
+            }, LinearLayout.LayoutParams(dp(56), dp(56)).apply { bottomMargin = dp(7) })
+            empty.addView(label("Nothing playing", 13f, Color.WHITE).apply { gravity = Gravity.CENTER })
+            empty.addView(label("Start music in a supported app.", 10.5f, Color.rgb(145, 148, 158)).apply {
+                gravity = Gravity.CENTER
+                setPadding(0, dp(3), 0, dp(1))
+            })
+            parent.addView(empty)
             return
         }
 
         val metadataRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(5), 0, dp(1))
         }
-        IslandState.albumArt?.let { bitmap ->
-            val image = ImageView(this).apply {
-                setImageBitmap(bitmap)
+        val cover: View = if (IslandState.albumArt != null) {
+            ImageView(this).apply {
+                setImageBitmap(IslandState.albumArt)
                 scaleType = ImageView.ScaleType.CENTER_CROP
-                background = GradientDrawable().apply { cornerRadius = dp(9).toFloat(); setColor(Color.rgb(25, 27, 36)) }
+                background = roundBackground(Color.rgb(28, 30, 36), dp(13), Color.rgb(54, 56, 63))
                 clipToOutline = true
             }
-            metadataRow.addView(image, LinearLayout.LayoutParams(dp(50), dp(50)).apply { rightMargin = dp(9) })
+        } else {
+            TextView(this).apply {
+                text = "♫"
+                textSize = 24f
+                gravity = Gravity.CENTER
+                setTextColor(Color.rgb(239, 240, 245))
+                background = GradientDrawable(
+                    GradientDrawable.Orientation.TL_BR,
+                    intArrayOf(Color.rgb(49, 51, 60), Color.rgb(20, 22, 28))
+                ).apply {
+                    cornerRadius = dp(13).toFloat()
+                    setStroke(dp(1), Color.rgb(58, 60, 68))
+                }
+            }
         }
-        val metadata = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_VERTICAL }
-        metadata.addView(label(IslandState.title, 13f))
-        metadata.addView(label(IslandState.subtitle, 10f, Color.LTGRAY))
+        metadataRow.addView(cover, LinearLayout.LayoutParams(dp(54), dp(54)).apply { rightMargin = dp(12) })
+
+        val metadata = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        metadata.addView(label(IslandState.title, 14f, Color.WHITE).apply {
+            maxLines = 1
+            letterSpacing = -0.015f
+        })
+        metadata.addView(label(IslandState.subtitle, 11f, Color.rgb(158, 161, 172)).apply {
+            maxLines = 1
+            setPadding(0, dp(3), 0, 0)
+        })
         metadataRow.addView(metadata, LinearLayout.LayoutParams(0, -2, 1f))
-        parent.addView(metadataRow)
+        parent.addView(metadataRow, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(6) })
 
         if (IslandState.mediaDurationMillis > 0L && IslandState.mediaCanSeek) {
             val seek = SeekBar(this).apply {
                 max = 1000
-                progressTintList = android.content.res.ColorStateList.valueOf(accent())
-                thumbTintList = android.content.res.ColorStateList.valueOf(accent())
+                progressTintList = android.content.res.ColorStateList.valueOf(Color.rgb(232, 233, 238))
+                thumbTintList = android.content.res.ColorStateList.valueOf(Color.rgb(245, 245, 248))
+                progressBackgroundTintList = android.content.res.ColorStateList.valueOf(Color.rgb(64, 66, 74))
                 progress = ((IslandState.mediaPositionMillis * 1000L) / IslandState.mediaDurationMillis).toInt().coerceIn(0, 1000)
                 setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                     override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                         if (fromUser) {
                             isSeeking = true
-                            seekTimeView?.text = "${formatTime(IslandState.mediaDurationMillis * progress / 1000L)} / ${formatTime(IslandState.mediaDurationMillis)}"
+                            seekTimeView?.text = "${formatTime(IslandState.mediaDurationMillis * progress / 1000L)}  /  ${formatTime(IslandState.mediaDurationMillis)}"
                         }
                     }
                     override fun onStartTrackingTouch(seekBar: SeekBar?) { isSeeking = true }
@@ -541,64 +683,109 @@ class IslandService : Service() {
                 })
             }
             seekBarView = seek
-            parent.addView(seek, LinearLayout.LayoutParams(-1, dp(32)).apply { topMargin = dp(3) })
-            seekTimeView = label("", 9f, Color.GRAY).apply { gravity = Gravity.CENTER }
+            parent.addView(seek, LinearLayout.LayoutParams(-1, dp(26)).apply { topMargin = dp(0) })
+            seekTimeView = label("", 9f, Color.rgb(136, 139, 150)).apply { gravity = Gravity.CENTER }
             parent.addView(seekTimeView)
         }
 
-        val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+        val controls = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+        }
         val actions = controller?.playbackState?.actions ?: 0L
-        controls.addView(actionButton("Previous", enabled = (actions and PlaybackState.ACTION_SKIP_TO_PREVIOUS.toLong()) != 0L) {
+        controls.addView(actionButton("⏮", enabled = (actions and PlaybackState.ACTION_SKIP_TO_PREVIOUS.toLong()) != 0L) {
             runCatching { controller?.transportControls?.skipToPrevious() }
-        }, LinearLayout.LayoutParams(0, dp(38), 1f).apply { rightMargin = dp(4) })
-        controls.addView(actionButton(if (IslandState.mediaPlaying) "Pause" else "Play") {
+        }, LinearLayout.LayoutParams(dp(48), dp(44)).apply { rightMargin = dp(12) })
+        controls.addView(actionButton(if (IslandState.mediaPlaying) "Ⅱ" else "▶", prominent = true) {
             runCatching {
                 val current = controller
                 if (current != null) {
                     if (IslandState.mediaPlaying) current.transportControls.pause() else current.transportControls.play()
                 }
             }
-        }, LinearLayout.LayoutParams(0, dp(38), 1f).apply { leftMargin = dp(2); rightMargin = dp(2) })
-        controls.addView(actionButton("Next", enabled = (actions and PlaybackState.ACTION_SKIP_TO_NEXT.toLong()) != 0L) {
+        }, LinearLayout.LayoutParams(dp(56), dp(48)))
+        controls.addView(actionButton("⏭", enabled = (actions and PlaybackState.ACTION_SKIP_TO_NEXT.toLong()) != 0L) {
             runCatching { controller?.transportControls?.skipToNext() }
-        }, LinearLayout.LayoutParams(0, dp(38), 1f).apply { leftMargin = dp(4) })
-        parent.addView(controls, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(7); bottomMargin = dp(7) })
+        }, LinearLayout.LayoutParams(dp(48), dp(44)).apply { leftMargin = dp(12) })
+        parent.addView(controls, LinearLayout.LayoutParams(-1, -2).apply {
+            topMargin = dp(5)
+            bottomMargin = dp(2)
+        })
     }
 
     private fun renderTimers(parent: LinearLayout) {
-        timerLabelView = label("Quick timers", 10f, Color.LTGRAY).apply { setPadding(0, dp(4), 0, dp(3)) }
+        val running = IslandState.timerEndMillis > System.currentTimeMillis()
+        timerLabelView = label(
+            if (running) "Timer running · ${timerRemaining()}" else "CHOOSE A DURATION",
+            10f,
+            Color.rgb(158, 161, 172)
+        ).apply {
+            letterSpacing = if (running) 0.01f else 0.09f
+            setPadding(0, dp(8), 0, dp(10))
+        }
         parent.addView(timerLabelView)
-        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+        }
         listOf(1, 5, 10, 25).forEachIndexed { index, minutes ->
-            row.addView(actionButton("${minutes}m") {
+            row.addView(actionButton("${minutes}m", prominent = running && IslandState.timerEndMillis - System.currentTimeMillis() < TimeUnit.MINUTES.toMillis(minutes.toLong())) {
                 IslandState.timerEndMillis = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(minutes.toLong())
                 IslandState.timerFinishedUntilMillis = 0L
                 IslandState.changed()
-                updateDynamicLabels()
-            }, LinearLayout.LayoutParams(0, dp(36), 1f).apply { if (index > 0) leftMargin = dp(4) })
+                render()
+            }, LinearLayout.LayoutParams(0, dp(44), 1f).apply {
+                if (index > 0) leftMargin = dp(6)
+            })
         }
-        parent.addView(row, LinearLayout.LayoutParams(-1, -2))
-        if (IslandState.timerEndMillis > 0L || IslandState.timerFinishedUntilMillis > System.currentTimeMillis()) {
-            parent.addView(actionButton("Cancel timer") {
+        parent.addView(row)
+
+        if (running || IslandState.timerFinishedUntilMillis > System.currentTimeMillis()) {
+            parent.addView(actionButton("Cancel timer", prominent = false) {
                 IslandState.timerEndMillis = 0L
                 IslandState.timerFinishedUntilMillis = 0L
                 IslandState.changed()
-                updateDynamicLabels()
-            }, LinearLayout.LayoutParams(-1, dp(34)).apply { topMargin = dp(5) })
+                render()
+            }, LinearLayout.LayoutParams(-1, dp(38)).apply { topMargin = dp(8) })
+        } else {
+            parent.addView(label("Your countdown runs inside PauzeX.", 10f, Color.rgb(130, 133, 144)).apply {
+                gravity = Gravity.CENTER
+                setPadding(0, dp(11), 0, dp(4))
+            })
         }
     }
 
-    private fun actionButton(text: String, enabled: Boolean = true, click: () -> Unit) = TextView(this).apply {
+    private fun actionButton(
+        text: String,
+        enabled: Boolean = true,
+        prominent: Boolean = false,
+        click: () -> Unit
+    ) = TextView(this).apply {
         this.text = text
-        textSize = 10.5f
+        textSize = if (text in listOf("⏮", "⏭", "▶", "Ⅱ")) 19f else 12f
+        typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         gravity = Gravity.CENTER
-        setTextColor(if (enabled) Color.WHITE else Color.GRAY)
+        val foreground = when {
+            !enabled -> Color.rgb(92, 94, 103)
+            prominent -> Color.rgb(12, 13, 16)
+            else -> Color.rgb(240, 241, 245)
+        }
+        setTextColor(foreground)
         isEnabled = enabled
-        alpha = if (enabled) 1f else 0.5f
-        background = GradientDrawable().apply {
-            cornerRadius = dp(12).toFloat()
-            setColor(Color.rgb(28, 30, 40))
-            setStroke(dp(1), Color.rgb(55, 58, 72))
+        alpha = if (enabled) 1f else 0.55f
+        background = if (text in listOf("⏮", "⏭", "▶", "Ⅱ")) {
+            GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(if (prominent && enabled) Color.rgb(245, 246, 249) else Color.rgb(32, 34, 41))
+                setStroke(dp(1), if (prominent && enabled) Color.rgb(245, 246, 249) else Color.rgb(49, 51, 60))
+            }
+        } else {
+            roundBackground(
+                if (prominent && enabled) Color.rgb(239, 240, 244) else Color.rgb(32, 34, 41),
+                dp(15),
+                if (prominent && enabled) Color.rgb(239, 240, 244) else Color.rgb(49, 51, 60)
+            )
         }
         setOnClickListener { if (isEnabled) click() }
     }
